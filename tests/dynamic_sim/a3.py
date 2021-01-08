@@ -6,6 +6,7 @@ import numpy as np
 from scipy.integrate import RK23, RK45, solve_ivp
 import importlib
 import time
+import sys
 
 
 if __name__ == '__main__':
@@ -21,18 +22,19 @@ if __name__ == '__main__':
     t_0 = time.time()
 
     ps = dps.PowerSystemModel(model=model)
-    ps.pf_max_it = 100
+    ps.pf_max_it = 10
     # ps.use_numba = True
     ps.power_flow()
     print(ps.s_0)
     print(np.abs(ps.v_0))
     print(ps.v_0)
     ps.init_dyn_sim()
+
     print(ps.state_desc)
     print(ps.x0)
     ps.build_y_bus_red()
     ps.ode_fun(0.0, ps.x0)
-    t_end = 1
+    t_end = 5
     x0 = ps.x0.copy()
     #x0[ps.gen_mdls['GEN'].state_idx['angle'][0]] += 1
 
@@ -41,10 +43,10 @@ if __name__ == '__main__':
     t = 0
     result_dict = defaultdict(list)
 
-    event_flag = False
-    event_flag2 = False
+    event_flag = True
+    event_flag2 = True
     while t < t_end:
-        print(t)
+        sys.stdout.write("\r%d%%" % (t/(t_end)*100))
 
         # Simulate next step
         result = sol.step()
@@ -63,7 +65,7 @@ if __name__ == '__main__':
         result_dict['Global', 't'].append(sol.t)
         [result_dict[tuple(desc)].append(state) for desc, state in zip(ps.state_desc, x)]
 
-    print('Simulation completed in {:.2f} seconds.'.format(time.time() - t_0))
+    print('   Simulation completed in {:.2f} seconds.'.format(time.time() - t_0))
 
     index = pd.MultiIndex.from_tuples(result_dict)
     result = pd.DataFrame(result_dict, columns=index)
