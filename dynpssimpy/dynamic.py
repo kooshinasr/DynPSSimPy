@@ -325,7 +325,7 @@ class PowerSystemModel:
             Y += y_ext
         return Y
 
-    def build_y_bus_red(self, keep_extra_buses=[]):
+    def build_y_bus_red(self, keep_extra_buses= ['name']):
         # Builds the admittance matrix of the reduced system by applying Kron reduction. By default, all buses other
         # generator buses are eliminated. Additional buses to include in the reduced system can be specified
         # in "keep_extra_buses" (list of bus names).
@@ -333,8 +333,8 @@ class PowerSystemModel:
         # If extra buses are specified before , store these. To ensure that the reduced admittance matrix has the same
         # dimension if rebuilt (by i.e. by network_event()-function.
         if len(keep_extra_buses) > 0:
+            keep_extra_buses = self.buses['name'] # Override kron reduction
             keep_extra_buses_idx = dps_uf.lookup_strings(keep_extra_buses, self.buses['name'])
-
             self.reduced_bus_idx = np.concatenate([self.gen_bus_idx, np.array(keep_extra_buses_idx, dtype=int)])
 
             # Remove duplicate buses
@@ -462,6 +462,7 @@ class PowerSystemModel:
         # Build reduced system
         self.y_bus = self.build_y_bus()
         self.build_y_bus_red()
+        print(self.reduced_bus_idx)
 
         # State variables:
         self.state_desc = np.empty((0, 2))
@@ -725,46 +726,37 @@ class PowerSystemModel:
 
         return dx
 
-    def network_event(self, element_type, name, action):
+    def network_event(self, event_type, name, action):
         # Simulate disconnection/connection of element by modifying admittance matrix
-        if not element_type[-1] == 's':
-            # line => lines
-            # transformer => transformers
-            element_type += 's'
 
-        df = getattr(self, element_type)
-        if element_type == 'lines':
+        if action == 'deactivate' or action == 'disconnect':
+            sign = -1
+        elif action == 'activate' or action == 'connect':
+            sign = 1
 
 
-            line = df[dps_uf.lookup_strings(name, df['name'])]
-
-            idx_from, idx_to, admittance, shunt = self.read_admittance_data('line', line)
+        if event_type == 'line':
+            df = getattr(self, 'lines')
+            obj = df[dps_uf.lookup_strings(name, df['name'])]
+            print(obj)
+            idx_from, idx_to, admittance, shunt = self.read_admittance_data('line', obj)
+            print(idx_from, idx_to)
             rows = np.array([idx_from, idx_to, idx_from, idx_to])
             cols = np.array([idx_from, idx_to, idx_to, idx_from])
             data = np.array([admittance + shunt / 2, admittance + shunt / 2, -admittance, -admittance])
-
-            rebuild_red = not(idx_from in self.reduced_bus_idx and idx_to in self.reduced_bus_idx)
-
-            if action == 'connect':
-                sign = 1
-            elif action == 'disconnect':
-                sign = -1
-
+            print(self.y_bus_red[idx_from,idx_to])
 
             y_line = lil_matrix((self.n_bus,) * 2, dtype=complex)
             y_line[rows, cols] = data
-            self.y_bus += sign*y_line
-            # self.v_to_i_lines_rev[line.index, [idx_to, idx_from]] += sign*np.array([admittance + shunt / 2, -admittance])
-            if rebuild_red:
-                self.build_y_bus_red()
-            else:
-                idx_from_red = np.where(self.reduced_bus_idx == idx_from)[0][0]
-                idx_to_red = np.where(self.reduced_bus_idx == idx_to)[0][0]
-                rows_red = np.array([idx_from_red, idx_to_red, idx_from_red, idx_to_red])
-                cols_red = np.array([idx_from_red, idx_to_red, idx_to_red, idx_from_red])
-                y_line_red = lil_matrix((self.n_bus_red,) * 2, dtype=complex)
-                y_line_red[rows_red, cols_red] = data
-                self.y_bus_red += sign*y_line_red
+            self.y_bus_red += sign * y_line
+
+        elif event_type == 'sc':
+
+            idx = dps_uf.lookup_strings(name, self.buses['name'])
+            print(idx)
+            self.y_bus_red[idx,idx] += 1j*sign * 1e10
+            print(self.y_bus_red[idx,idx])
+
 
     def apply_inputs(self, input_desc, u):
         # NB: Experimental
