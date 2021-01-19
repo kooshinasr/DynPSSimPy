@@ -9,6 +9,8 @@ import time
 import sys
 
 
+
+
 if __name__ == '__main__':
 
     # Load model
@@ -21,31 +23,34 @@ if __name__ == '__main__':
     t_0 = time.time()
 
     ps = dps.PowerSystemModel(model=model)
-    ps.pf_max_it = 10
-    # ps.use_numba = True
+    ps.pf_max_it = 10 # Max iterations for power flow
     ps.power_flow()
+
+    ps.init_dyn_sim()
+    ## Print power flow results
     #print(ps.s_0)
     #print(np.abs(ps.v_0))
     #print(ps.v_0)
-    ps.init_dyn_sim()
-    #print(ps.state_desc)
-    #print(ps.x0)
-    #ps.build_y_bus_red()
-    print(ps.reduced_bus_idx)
     ps.ode_fun(0.0, ps.x0)
-    t_end = 4
+
+
     x0 = ps.x0.copy()
     #x0[ps.gen_mdls['GEN'].state_idx['angle'][0]] += 1
 
-    sol = RK45(ps.ode_fun, 0, x0, t_end, max_step=1e-2)
 
+    t_end = 3 # End of simulation
+
+    sol = RK45(ps.ode_fun, 0, x0, t_end, max_step=1e-2)
     t = 0
     result_dict = defaultdict(list)
-    gen_outs = []
-    avr_outs = []
-    gov_outs = []
-    [gen_outs.append([i[0],'P_e']) for i in ps.gen_mdls['GEN'].par]
-    [gov_outs.append([i[0],'P_m']) for i in ps.gov_mdls['TGOV1'].par]
+
+    #avr_outs = []
+    #gov_outs = []
+    gen_vars = ['P_e', 'I_g']
+    bus_vars = ['v']
+
+    gen_var_desc = ps.var_desc('GEN',gen_vars)
+    bus_var_desc = ps.var_desc('bus',bus_vars)
 
     event_flag = True
     event_flag2 = True
@@ -59,56 +64,53 @@ if __name__ == '__main__':
 
         if t >= 1 and event_flag:
             event_flag = False
-            #ps.network_event('line', 'L1-2', 'disconnect')
-            ps.network_event('sc','B2', 'activate')
+            ps.network_event('line', 'L1-2', 'disconnect')
+            #ps.network_event('sc','B2', 'activate')
 
-        if t >= 1.1 and event_flag2:
+        if t >= 1.05 and event_flag2:
             event_flag2 = False
             #ps.network_event('line', 'L1-2', 'connect')
-            ps.network_event('sc', 'B2', 'deactivate')
+            #ps.network_event('sc', 'B2', 'deactivate')
 
         # Store result
-        result_dict['Global', 't'].append(sol.t)
-        [result_dict[tuple(desc)].append(state) for desc, state in zip(ps.state_desc, x)]
-        [result_dict[tuple(desc)].append(out) for desc, out in zip(gen_outs, ps.gen_mdls['GEN'].output['P_e'])]
-        [result_dict[tuple(desc)].append(out) for desc, out in zip(gov_outs, ps.gov_mdls['TGOV1'].output['P_m'])]
+        result_dict['Global', 't'].append(sol.t)                                                # Time
+        [result_dict[tuple(desc)].append(state) for desc, state in zip(ps.state_desc, x)]       # States
+        ps.store_vars('GEN',gen_vars, gen_var_desc, result_dict)                                # Additional gen vars
+        ps.store_vars('bus',bus_vars, bus_var_desc, result_dict)                                # Additional bus vars
 
-
-    [print(dm) for key, dm in ps.gen_mdls.items()]
-
-    print(ps.generators)
     print('   Simulation completed in {:.2f} seconds.'.format(time.time() - t_0))
-
     index = pd.MultiIndex.from_tuples(result_dict)
     result = pd.DataFrame(result_dict, columns=index)
-
     t_plot = result[('Global', 't')]
 
+    # Plotting section
     fig, ax = plt.subplots(2, sharex = True)
-    var1 = 'speed'  # variable to plot
-    p1 = result.xs(key=var1, axis='columns', level=1)
-    legnd1 = list(np.array(var1 + ': ')+p1.columns)
+
+    var1 = 'I_g'                                        # variable to plot
+    p1 = result.xs(key=var1, axis='columns', level=1)   # time domain values for var1
+    legnd1 = list(np.array(var1 + ': ')+p1.columns)     # legend for var1
 
     ax[0].plot(t_plot, p1)
     ax[0].legend(legnd1)
     #ax[0].set_ylabel('Electrical power')
 
-    var2 = 'P_m'  # variable to plot
-    p2 = result.xs(key=var2, axis='columns', level=1)
-    legnd2 = list(np.array(var2 + ': ') + p2.columns)
-
+    var2 = 'angle'                                      # variable to plot
+    p2 = result.xs(key=var2, axis='columns', level=1)   # time domain values for var2
+    legnd2 = list(np.array(var2 + ': ') + p2.columns)   # legend for var2
 
     var3 = 'P_e'  # variable to plot
     p3 = result.xs(key=var3, axis='columns', level=1)
     legnd3 = list(np.array(var3 + ': ') + p3.columns)
 
-    #ax[1].plot(t_plot, p2)
-    #ax[1].legend(legnd2)
+    ax[1].plot(t_plot, p2)
+    #ax[1].plot(t_plot, p3)                             # Plotting two variables in same plot
+    print(result)
+    ax[1].legend(legnd2+ legnd3)
 
     # Plot different variables together in same subplot
-    ax[1].plot(t_plot, p2)
-    ax[1].plot(t_plot, p3)
-    ax[1].legend(legnd2 + legnd3)
+    #ax[1].plot(t_plot, p2)
+    #ax[1].plot(t_plot, p3)
+    #ax[1].legend(legnd2 + legnd3)
 
     #p2 = list(p1.columns)+list(p2.columns)
 

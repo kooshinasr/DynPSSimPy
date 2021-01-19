@@ -336,11 +336,9 @@ class PowerSystemModel:
             keep_extra_buses = self.buses['name'] # Override kron reduction
             keep_extra_buses_idx = dps_uf.lookup_strings(keep_extra_buses, self.buses['name'])
             self.reduced_bus_idx = np.concatenate([self.gen_bus_idx, np.array(keep_extra_buses_idx, dtype=int)])
-
             # Remove duplicate buses
             _, idx = np.unique(self.reduced_bus_idx, return_index=True)
-            self.reduced_bus_idx = self.reduced_bus_idx[np.sort(idx)]
-
+            self.reduced_bus_idx = np.sort(self.reduced_bus_idx[np.sort(idx)])
         self.n_bus_red = len(self.reduced_bus_idx)
         self.y_bus_red_full = self.kron_reduction(self.y_bus, self.reduced_bus_idx)  # np.empty((self.n_gen, self.n_gen))
 
@@ -462,7 +460,6 @@ class PowerSystemModel:
         # Build reduced system
         self.y_bus = self.build_y_bus()
         self.build_y_bus_red()
-        print(self.reduced_bus_idx)
 
         # State variables:
         self.state_desc = np.empty((0, 2))
@@ -740,11 +737,9 @@ class PowerSystemModel:
             obj = df[dps_uf.lookup_strings(name, df['name'])]
             print(obj)
             idx_from, idx_to, admittance, shunt = self.read_admittance_data('line', obj)
-            print(idx_from, idx_to)
             rows = np.array([idx_from, idx_to, idx_from, idx_to])
             cols = np.array([idx_from, idx_to, idx_to, idx_from])
             data = np.array([admittance + shunt / 2, admittance + shunt / 2, -admittance, -admittance])
-            print(self.y_bus_red[idx_from,idx_to])
 
             y_line = lil_matrix((self.n_bus,) * 2, dtype=complex)
             y_line[rows, cols] = data
@@ -753,10 +748,7 @@ class PowerSystemModel:
         elif event_type == 'sc':
 
             idx = dps_uf.lookup_strings(name, self.buses['name'])
-            print(idx)
-            self.y_bus_red[idx,idx] += 1j*sign * 1e10
-            print(self.y_bus_red[idx,idx])
-
+            self.y_bus_red[idx,idx] += 1j*sign * 1e15
 
     def apply_inputs(self, input_desc, u):
         # NB: Experimental
@@ -782,6 +774,48 @@ class PowerSystemModel:
         lin.linearize(**kwargs)
         return lin
 
+    def var_desc(self, type, varnames):
+        desc = []
+        if type == 'GEN':
+            outputs = list(set(varnames) & set(self.gen_mdls['GEN'].output_list))
+            inputs = list(set(varnames) & set(self.gen_mdls['GEN'].input_list))
+            varnames = inputs + outputs
+            for gen in self.gen_mdls['GEN'].par:
+                for var in varnames:
+                    desc.append([gen[0],var])
+
+        elif type == 'AVR':
+            outputs = list(set(varnames) & set(self.avr_mdls['SEXS'].output_list))
+            inputs = list(set(varnames) & set(self.avr_mdls['SEXS'].input_list))
+            varnames = inputs + outputs
+            for avr in self.avr_mdls['SEXS'].par:
+                for var in varnames:
+                    desc.append([avr[0], var])
+        elif type == 'bus':
+            for i in range(self.n_bus):
+                for var in varnames:
+                    if var == 'v':
+                        desc.append([self.buses[i][0],var])
+                    if var == 'i_inj':
+                        desc.append([self.buses[i][0],var])
+        return desc
+
+    def store_vars(self, type, varnames, vardesc, resultdict):
+        if type == 'GEN':
+            var_outs = list(set(varnames) & set(self.gen_mdls['GEN'].output_list))
+            var_ins = list(set(varnames) & set(self.gen_mdls['GEN'].input_list))
+            store_vars_out = self.gen_mdls['GEN'].output[var_outs]
+            store_vars_out = [i for sub in store_vars_out for i in sub]
+            store_vars_in = self.gen_mdls['GEN'].output[var_ins]
+            store_vars_in = [i for sub in store_vars_in for i in sub]
+            store_vars_out.extend(store_vars_in)
+            [resultdict[tuple(desc)].append(out) for desc, out in zip(vardesc, store_vars_out)]
+
+        elif type == 'bus':
+            if 'v' in varnames:
+                [resultdict[tuple(desc)].append(out) for desc, out in zip(vardesc, self.v_red)]
+            if 'P_e' in varnames:
+                pass
 
 if __name__ == '__main__':
     from scipy.integrate import RK23, RK45, solve_ivp
