@@ -64,13 +64,13 @@ if __name__ == '__main__':
 
         if t >= 1 and event_flag:
             event_flag = False
-            ps.network_event('line', 'L1-2', 'disconnect')
-            #ps.network_event('sc','B2', 'activate')
+            #ps.network_event('line', 'L1-2', 'disconnect')
+            ps.network_event('sc','B2', 'activate')
 
         if t >= 1.05 and event_flag2:
             event_flag2 = False
             #ps.network_event('line', 'L1-2', 'connect')
-            #ps.network_event('sc', 'B2', 'deactivate')
+            ps.network_event('sc', 'B2', 'deactivate')
 
         # Store result
         result_dict['Global', 't'].append(sol.t)                                                # Time
