@@ -69,7 +69,7 @@ class LineOutageWidget(QtWidgets.QWidget):
             action = 'connect'
         else:
             action = 'disconnect'
-        self.ps.network_event('lines', self.sender().accessibleName(), action)
+        self.ps.network_event('line', self.sender().accessibleName(), action)
 
 
 class GenCtrlWidget(QtWidgets.QWidget):
