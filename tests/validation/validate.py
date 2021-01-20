@@ -1,5 +1,5 @@
 import unittest
-from tests.validation.validation_functions import generate_plots, load_pf_res, compute_error
+import tests.validation.validation_functions as val_fun
 import pandas as pd
 from collections import defaultdict
 import dynpssimpy.dynamic as dps
@@ -26,7 +26,7 @@ class MyTestCase(unittest.TestCase):
         max_step = 5e-3
 
         # PowerFactory result
-        pf_res = load_pf_res('k2a/powerfactory_res.csv')
+        pf_res = val_fun.load_pf_res('k2a/powerfactory_res.csv')
 
         # Python result
         x0 = ps.x0
@@ -56,7 +56,7 @@ class MyTestCase(unittest.TestCase):
         index = pd.MultiIndex.from_tuples(result_dict)
         result = pd.DataFrame(result_dict, columns=index)
 
-        error = compute_error(ps, result, pf_res, max_step)
+        error = val_fun.compute_error(ps, result, pf_res, max_step)
         self.assertLessEqual(error, 0.02)
 
     def test_ieee39(self):
@@ -73,7 +73,7 @@ class MyTestCase(unittest.TestCase):
         max_step = 5e-3
 
         # PowerFactory result
-        pf_res = load_pf_res('ieee39/powerfactory_res.csv')
+        pf_res = val_fun.load_pf_res('ieee39/powerfactory_res.csv')
 
         x0 = ps.x0
 
@@ -108,7 +108,7 @@ class MyTestCase(unittest.TestCase):
         index = pd.MultiIndex.from_tuples(result_dict)
         result = pd.DataFrame(result_dict, columns=index)
 
-        error = compute_error(ps, result, pf_res, max_step)
+        error = val_fun.compute_error(ps, result, pf_res, max_step)
         self.assertLessEqual(error, 0.02)
 
     def test_n44_init(self):

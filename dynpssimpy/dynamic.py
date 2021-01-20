@@ -243,6 +243,31 @@ class PowerSystemModel:
             self.trafos_from_mat[i, idx_from] = 1
             self.trafos_to_mat[i, idx_to] = 1
 
+    def compute_result(self, type, name, res):
+        if type == 'load':
+            if res in ['p', 'q', 's', 'P', 'Q', 'S']:
+                load_idx = dps_uf.lookup_strings(name, self.loads['name'])
+                z = self.loads['Z'][load_idx]
+                bus_idx = self.loads['bus_idx'][load_idx]  # This works when kron reduction is bypassed!
+                # if bus_idx in self.reduced_bus_idx:
+                s = abs(self.v_red[bus_idx]) ** 2 / np.conj(z)
+
+                # Lower case letters (p, q, s) give result in system p.u. base
+                # Capital letters (P, Q, S) give result in ohm
+                if res.isupper():
+                    pu_mod = self.s_n
+                else:
+                    pu_mod = 1
+
+                if res in ['s', 'S']:
+                    return s*pu_mod
+                if res in ['p', 'P']:
+                    return s.real*pu_mod
+                if res in ['q', 'Q']:
+                    return s.imag*pu_mod
+
+
+
     def build_y_bus(self, type='dyn', y_ext=np.empty((0, 0))):
         # Build bus admittance matrix.
         # If type=='dyn', generator admittances and load admittances are included in the admittance matrix.
@@ -293,6 +318,13 @@ class PowerSystemModel:
 
         y_load = np.zeros((n_bus, n_bus), dtype=complex)
         if type == 'dyn':
+
+            # Add impedance field to load input parameters (to be able to compute actual power consumed by load)
+            # Impedance is given in system p.u. base
+            if len(self.loads) > 0:
+                field_z = np.ones(len(self.loads), dtype=[('Z', complex)])
+                field_bus = np.ones(len(self.loads), dtype=[('bus_idx', int)])
+
             for i, load in enumerate(self.loads):
                 s_load = (load['P'] + 1j * load['Q']) / self.s_n
                 if load['model'] == 'Z' and abs(s_load) > 0:
@@ -300,6 +332,12 @@ class PowerSystemModel:
                     idx_bus = dps_uf.lookup_strings(load['bus'], buses['name'])
                     z = np.conj(abs(self.v_0[idx_bus])**2/s_load)
                     y_load[idx_bus, idx_bus] += 1/z
+                    field_z[i] = z
+                    field_bus[i] = idx_bus
+
+            if len(self.loads) > 0:
+                self.loads = dps_uf.combine_recarrays(self.loads, field_z)
+                self.loads = dps_uf.combine_recarrays(self.loads, field_bus)
 
         y_shunt = np.zeros((n_bus, n_bus), dtype=complex)
         for i, shunt in enumerate(self.shunts):
@@ -460,6 +498,7 @@ class PowerSystemModel:
         # Build reduced system
         self.y_bus = self.build_y_bus()
         self.build_y_bus_red()
+        self.v_red = self.v_0[self.reduced_bus_idx]
 
         # State variables:
         self.state_desc = np.empty((0, 2))
