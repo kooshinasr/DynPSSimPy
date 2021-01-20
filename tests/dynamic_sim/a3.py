@@ -24,27 +24,26 @@ if __name__ == '__main__':
     ps.pf_max_it = 10 # Max iterations for power flow
     ps.power_flow()
 
+    # Print power flow results
+    float_formatter = "{:.3f}".format
+    np.set_printoptions(formatter={'float_kind': float_formatter})
+    print('   Gen  |  Load |  Grid')
+    print('P: {}'.format(np.real(ps.s_0)))
+    print('Q: {}'.format(np.imag(ps.s_0)))
+    print('V: {}'.format(np.abs(ps.v_0)))
+    print('d: {}'.format(np.angle(ps.v_0)*180/np.pi))
+
     ps.init_dyn_sim()
-    ## Print power flow results
-    #print(ps.s_0)
-    #print(np.abs(ps.v_0))
-    #print(ps.v_0)
     ps.ode_fun(0.0, ps.x0)
-
-
     x0 = ps.x0.copy()
-    #x0[ps.gen_mdls['GEN'].state_idx['angle'][0]] += 1
-
-
-    t_end = 3 # End of simulation
-
-    sol = RK45(ps.ode_fun, 0, x0, t_end, max_step=1e-2)
     t = 0
+    t_end = 3 # End of simulation
+    sol = RK45(ps.ode_fun, 0, x0, t_end, max_step=1e-2)
     result_dict = defaultdict(list)
 
     # Additional plot variables below. All states are stored by default, but algebraic variables like powers and
     # currents have to be specified in the lists below. Currently supports GEN output and input variables, and
-    # power at load buses.
+    # powers ['P_l', 'Q_l', 'S_l'] at load buses.
     #avr_outs = []
     #gov_outs = []
     gen_vars = ['P_e', 'I_g']
@@ -56,7 +55,7 @@ if __name__ == '__main__':
     event_flag = True
     event_flag2 = True
     while t < t_end:
-        sys.stdout.write("\r%d%%" % (t/(t_end)*100))
+        sys.stdout.write("\r%d%%" % (t/t_end*100))
 
         # Simulate next step
         result = sol.step()
@@ -65,13 +64,16 @@ if __name__ == '__main__':
 
         if t >= 1 and event_flag:
             event_flag = False
-            #ps.network_event('line', 'L1-2', 'disconnect')
             ps.network_event('sc','B2', 'activate')
 
-        if t >= 1.05 and event_flag2:
+            #ps.network_event('line', 'L1-2', 'disconnect')
+            #x[ps.gen_mdls['GEN'].state_idx['angle'][0]] += 1
+
+        if t >= 1.01 and event_flag2:
             event_flag2 = False
-            #ps.network_event('line', 'L1-2', 'connect')
             ps.network_event('sc', 'B2', 'deactivate')
+
+            #ps.network_event('line', 'L1-2', 'connect')
 
         # Store result
         result_dict['Global', 't'].append(sol.t)                                                # Time
@@ -93,7 +95,7 @@ if __name__ == '__main__':
 
     var2 = 'angle'                                      # variable to plot
     p2 = result.xs(key=var2, axis='columns', level=1)   # time domain values for var2
-    p2 = p2[['G1']]
+    p2 = p2[['G1']]                                     # Double brackets to access specific devices (e.g. G1)
     legnd2 = list(np.array(var2 + ': ') + p2.columns)   # legend for var2
 
     var3 = 'P_e'  # variable to plot
@@ -109,21 +111,6 @@ if __name__ == '__main__':
     ax[1].plot(t_plot, p3)                              # Plotting two variables in same plot
     ax[1].legend(legnd2 + legnd3)
     ax[1].set_ylabel('Power and angle')
-
-    plt.figure()
-    plt.plot(p2,p3)
-    # Plot different variables together in same subplot
-    #ax[1].plot(t_plot, p2)
-    #ax[1].plot(t_plot, p3)
-    #ax[1].legend(legnd2 + legnd3)
-
-    #p2 = list(p1.columns)+list(p2.columns)
-
-    #ax[1].plot(t_plot, p1)
-    #ax[1].plot(t_plot, p2)
-    #ax[1].legend(p2)
-    #ax[1].set_ylabel('Angle & El power')
-    ##print(result.xs(key='speed', axis='columns', level=1).columns)
 
     fig.text(0.5, 0.04, 'Time [seconds]', ha='center')
     plt.show()

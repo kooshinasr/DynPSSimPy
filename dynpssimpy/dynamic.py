@@ -808,7 +808,6 @@ class PowerSystemModel:
                     desc.append([avr[0], var])
         elif type == 'load':
             for load in self.loads:
-                print(load)
                 for var in varnames:
                     if var == 'v':
                         desc.append([load[0],var])
