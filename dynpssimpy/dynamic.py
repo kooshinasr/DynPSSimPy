@@ -243,6 +243,7 @@ class PowerSystemModel:
             self.trafos_from_mat[i, idx_from] = 1
             self.trafos_to_mat[i, idx_to] = 1
 
+
     def build_y_bus(self, type='dyn', y_ext=np.empty((0, 0))):
         # Build bus admittance matrix.
         # If type=='dyn', generator admittances and load admittances are included in the admittance matrix.
@@ -293,6 +294,13 @@ class PowerSystemModel:
 
         y_load = np.zeros((n_bus, n_bus), dtype=complex)
         if type == 'dyn':
+
+            # Add impedance field to load input parameters (to be able to compute actual power consumed by load)
+            # Impedance is given in system p.u. base
+            if len(self.loads) > 0:
+                field_z = np.ones(len(self.loads), dtype=[('Z', complex)])
+                field_bus = np.ones(len(self.loads), dtype=[('bus_idx', int)])
+
             for i, load in enumerate(self.loads):
                 s_load = (load['P'] + 1j * load['Q']) / self.s_n
                 if load['model'] == 'Z' and abs(s_load) > 0:
@@ -300,6 +308,12 @@ class PowerSystemModel:
                     idx_bus = dps_uf.lookup_strings(load['bus'], buses['name'])
                     z = np.conj(abs(self.v_0[idx_bus])**2/s_load)
                     y_load[idx_bus, idx_bus] += 1/z
+                    field_z[i] = z
+                    field_bus[i] = idx_bus
+
+            if len(self.loads) > 0:
+                self.loads = dps_uf.combine_recarrays(self.loads, field_z)
+                self.loads = dps_uf.combine_recarrays(self.loads, field_bus)
 
         y_shunt = np.zeros((n_bus, n_bus), dtype=complex)
         for i, shunt in enumerate(self.shunts):
@@ -325,7 +339,7 @@ class PowerSystemModel:
             Y += y_ext
         return Y
 
-    def build_y_bus_red(self, keep_extra_buses=[]):
+    def build_y_bus_red(self, keep_extra_buses= ['name']):
         # Builds the admittance matrix of the reduced system by applying Kron reduction. By default, all buses other
         # generator buses are eliminated. Additional buses to include in the reduced system can be specified
         # in "keep_extra_buses" (list of bus names).
@@ -333,14 +347,12 @@ class PowerSystemModel:
         # If extra buses are specified before , store these. To ensure that the reduced admittance matrix has the same
         # dimension if rebuilt (by i.e. by network_event()-function.
         if len(keep_extra_buses) > 0:
+            keep_extra_buses = self.buses['name'] # Override kron reduction
             keep_extra_buses_idx = dps_uf.lookup_strings(keep_extra_buses, self.buses['name'])
-
             self.reduced_bus_idx = np.concatenate([self.gen_bus_idx, np.array(keep_extra_buses_idx, dtype=int)])
-
             # Remove duplicate buses
             _, idx = np.unique(self.reduced_bus_idx, return_index=True)
-            self.reduced_bus_idx = self.reduced_bus_idx[np.sort(idx)]
-
+            self.reduced_bus_idx = np.sort(self.reduced_bus_idx[np.sort(idx)])
         self.n_bus_red = len(self.reduced_bus_idx)
         self.y_bus_red_full = self.kron_reduction(self.y_bus, self.reduced_bus_idx)  # np.empty((self.n_gen, self.n_gen))
 
@@ -462,6 +474,7 @@ class PowerSystemModel:
         # Build reduced system
         self.y_bus = self.build_y_bus()
         self.build_y_bus_red()
+        self.v_red = self.v_0[self.reduced_bus_idx]
 
         # State variables:
         self.state_desc = np.empty((0, 2))
@@ -725,46 +738,32 @@ class PowerSystemModel:
 
         return dx
 
-    def network_event(self, element_type, name, action):
+    def network_event(self, event_type, name, action):
         # Simulate disconnection/connection of element by modifying admittance matrix
-        if not element_type[-1] == 's':
-            # line => lines
-            # transformer => transformers
-            element_type += 's'
 
-        df = getattr(self, element_type)
-        if element_type == 'lines':
+        if action == 'deactivate' or action == 'disconnect':
+            sign = -1
+        elif action == 'activate' or action == 'connect':
+            sign = 1
 
 
-            line = df[dps_uf.lookup_strings(name, df['name'])]
-
-            idx_from, idx_to, admittance, shunt = self.read_admittance_data('line', line)
+        if event_type == 'line':
+            df = getattr(self, 'lines')
+            obj = df[dps_uf.lookup_strings(name, df['name'])]
+            print(obj)
+            idx_from, idx_to, admittance, shunt = self.read_admittance_data('line', obj)
             rows = np.array([idx_from, idx_to, idx_from, idx_to])
             cols = np.array([idx_from, idx_to, idx_to, idx_from])
             data = np.array([admittance + shunt / 2, admittance + shunt / 2, -admittance, -admittance])
 
-            rebuild_red = not(idx_from in self.reduced_bus_idx and idx_to in self.reduced_bus_idx)
-
-            if action == 'connect':
-                sign = 1
-            elif action == 'disconnect':
-                sign = -1
-
-
             y_line = lil_matrix((self.n_bus,) * 2, dtype=complex)
             y_line[rows, cols] = data
-            self.y_bus += sign*y_line
-            # self.v_to_i_lines_rev[line.index, [idx_to, idx_from]] += sign*np.array([admittance + shunt / 2, -admittance])
-            if rebuild_red:
-                self.build_y_bus_red()
-            else:
-                idx_from_red = np.where(self.reduced_bus_idx == idx_from)[0][0]
-                idx_to_red = np.where(self.reduced_bus_idx == idx_to)[0][0]
-                rows_red = np.array([idx_from_red, idx_to_red, idx_from_red, idx_to_red])
-                cols_red = np.array([idx_from_red, idx_to_red, idx_to_red, idx_from_red])
-                y_line_red = lil_matrix((self.n_bus_red,) * 2, dtype=complex)
-                y_line_red[rows_red, cols_red] = data
-                self.y_bus_red += sign*y_line_red
+            self.y_bus_red += sign * y_line
+
+        elif event_type == 'sc':
+
+            idx = dps_uf.lookup_strings(name, self.buses['name'])
+            self.y_bus_red[idx,idx] += 1j*sign * 1e15
 
     def apply_inputs(self, input_desc, u):
         # NB: Experimental
@@ -789,6 +788,92 @@ class PowerSystemModel:
         lin = dps_mdl.PowerSystemModelLinearization(self)
         lin.linearize(**kwargs)
         return lin
+
+    def var_desc(self, type, varnames):
+        desc = []
+        if type == 'GEN':
+            outputs = list(set(varnames) & set(self.gen_mdls['GEN'].output_list))
+            inputs = list(set(varnames) & set(self.gen_mdls['GEN'].input_list))
+            varnames = inputs + outputs
+            for gen in self.gen_mdls['GEN'].par:
+                for var in varnames:
+                    desc.append([gen[0],var])
+
+        elif type == 'AVR':
+            outputs = list(set(varnames) & set(self.avr_mdls['SEXS'].output_list))
+            inputs = list(set(varnames) & set(self.avr_mdls['SEXS'].input_list))
+            varnames = inputs + outputs
+            for avr in self.avr_mdls['SEXS'].par:
+                for var in varnames:
+                    desc.append([avr[0], var])
+        elif type == 'load':
+            for load in self.loads:
+                print(load)
+                for var in varnames:
+                    if var == 'v':
+                        desc.append([load[0],var])
+                    if var == 'P_l':
+                        desc.append([load[0],var])
+                    if var == 'Q_l':
+                        desc.append([load[0],var])
+                    if var == 'S_l':
+                        desc.append([load[0],var])
+        return desc
+
+    def store_vars(self, type, varnames, vardesc, resultdict):
+        if type == 'GEN':
+            var_outs = list(set(varnames) & set(self.gen_mdls['GEN'].output_list))
+            var_ins = list(set(varnames) & set(self.gen_mdls['GEN'].input_list))
+            store_vars_out = self.gen_mdls['GEN'].output[var_outs]
+            store_vars_out = [i for sub in store_vars_out for i in sub]
+            store_vars_in = self.gen_mdls['GEN'].output[var_ins]
+            store_vars_in = [i for sub in store_vars_in for i in sub]
+            store_vars_out.extend(store_vars_in)
+            [resultdict[tuple(desc)].append(out) for desc, out in zip(vardesc, store_vars_out)]
+
+        elif type == 'load':
+            if 'v' in varnames:
+                [resultdict[tuple(desc)].append(out) for desc, out in zip(vardesc, self.v_red)]
+            if any(x in ['P_l', 'Q_l', 'S_l'] for x in varnames):
+                store_vars = []
+                for load in self.loads:
+                    name = load[0]
+                    load_idx = dps_uf.lookup_strings(name, self.loads['name'])
+                    z = self.loads['Z'][load_idx]
+                    bus_idx = self.loads['bus_idx'][load_idx]  # This works when kron reduction is bypassed!
+                    # if bus_idx in self.reduced_bus_idx:
+                    s = abs(self.v_red[bus_idx]) ** 2 / np.conj(z)
+                    store_vars.append(s)
+
+                if 'S_l' in varnames:
+                    [resultdict[tuple(desc)].append(out) for desc, out in zip(vardesc, store_vars)]
+                if 'P_l' in varnames:
+                    [resultdict[tuple(desc)].append(out) for desc, out in zip(vardesc, np.real(store_vars))]
+                if 'Q_l' in varnames:
+                    [resultdict[tuple(desc)].append(out) for desc, out in zip(vardesc, np.imag(store_vars))]
+
+    def compute_result(self, type, name, res):
+        if type == 'load':
+            if res in ['p', 'q', 's', 'P', 'Q', 'S']:
+                load_idx = dps_uf.lookup_strings(name, self.loads['name'])
+                z = self.loads['Z'][load_idx]
+                bus_idx = self.loads['bus_idx'][load_idx]  # This works when kron reduction is bypassed!
+                # if bus_idx in self.reduced_bus_idx:
+                s = abs(self.v_red[bus_idx]) ** 2 / np.conj(z)
+
+                # Lower case letters (p, q, s) give result in system p.u. base
+                # Capital letters (P, Q, S) give result in ohm
+                if res.isupper():
+                    pu_mod = self.s_n
+                else:
+                    pu_mod = 1
+
+                if res in ['s', 'S']:
+                    return s*pu_mod
+                if res in ['p', 'P']:
+                    return s.real*pu_mod
+                if res in ['q', 'Q']:
+                    return s.imag*pu_mod
 
 
 if __name__ == '__main__':

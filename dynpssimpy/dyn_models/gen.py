@@ -6,7 +6,7 @@ class GEN:
         self.state_list = ['speed', 'angle', 'e_q_t', 'e_d_t', 'e_q_st', 'e_d_st']
         self.input_list = ['V_t_abs', 'V_t_angle', 'P_m', 'E_f', 'v_aux', 'v_pss']
         self.int_par_list = ['f']
-        self.output_list = ['P_e', 'Q', 'T_m']
+        self.output_list = ['P_e', 'Q', 'T_m', 'I_g']
 
     @staticmethod
     def initialize(x_0, input, output, p, int_par):
@@ -83,7 +83,6 @@ class GEN:
         # e = input['e_q'] * q
 
         I_g = (e_st - V_g) / (1j * p['X_d_st'])
-
         v_g_dq = V_g * np.exp(1j * (np.pi / 2 - x['angle']))
         v_d = v_g_dq.real
         v_q = v_g_dq.imag
@@ -101,7 +100,7 @@ class GEN:
         # Generators
         T_m = input['P_m'] / (1 + x['speed'])
         output['T_m'][:] = T_m
-
+        output['I_g'][:] = abs(I_g)
         H = p['H']/p['PF_n']
 
         dx['speed'][:] = 1/(2*H)*(T_m - P_e - p['D'] * x['speed'])
