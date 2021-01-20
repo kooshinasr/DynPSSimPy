@@ -42,10 +42,13 @@ if __name__ == '__main__':
     t = 0
     result_dict = defaultdict(list)
 
+    # Additional plot variables below. All states are stored by default, but algebraic variables like powers and
+    # currents have to be specified in the lists below. Currently supports GEN output and input variables, and
+    # power at load buses.
     #avr_outs = []
     #gov_outs = []
     gen_vars = ['P_e', 'I_g']
-    load_vars = ['P_l']
+    load_vars = ['P_l']  # l subscript means "load"
 
     gen_var_desc = ps.var_desc('GEN',gen_vars)
     load_var_desc = ps.var_desc('load',load_vars)
@@ -74,39 +77,41 @@ if __name__ == '__main__':
         result_dict['Global', 't'].append(sol.t)                                                # Time
         [result_dict[tuple(desc)].append(state) for desc, state in zip(ps.state_desc, x)]       # States
         ps.store_vars('GEN',gen_vars, gen_var_desc, result_dict)                                # Additional gen vars
-        ps.store_vars('load',load_vars, load_var_desc, result_dict)                              # Load vars
+        ps.store_vars('load',load_vars, load_var_desc, result_dict)                             # Load vars
 
     print('   Simulation completed in {:.2f} seconds.'.format(time.time() - t_0))
     index = pd.MultiIndex.from_tuples(result_dict)
     result = pd.DataFrame(result_dict, columns=index)
     t_plot = result[('Global', 't')]
 
-    #ps.compute_result('load', 'L1', 'p')
-
     # Plotting section
     fig, ax = plt.subplots(2, sharex = True)
 
-    var1 = 'I_g'                                        # variable to plot
+    var1 = 'speed'                                      # variable to plot
     p1 = result.xs(key=var1, axis='columns', level=1)   # time domain values for var1
     legnd1 = list(np.array(var1 + ': ')+p1.columns)     # legend for var1
 
-    ax[0].plot(t_plot, p1)
-    ax[0].legend(legnd1)
-    #ax[0].set_ylabel('Electrical power')
-
     var2 = 'angle'                                      # variable to plot
     p2 = result.xs(key=var2, axis='columns', level=1)   # time domain values for var2
+    p2 = p2[['G1']]
     legnd2 = list(np.array(var2 + ': ') + p2.columns)   # legend for var2
 
-    var3 = 'P_l'  # variable to plot
+    var3 = 'P_e'  # variable to plot
     p3 = result.xs(key=var3, axis='columns', level=1)
+    p3 = p3[['G1']]
     legnd3 = list(np.array(var3 + ': ') + p3.columns)
 
-    ax[1].plot(t_plot, p3)
-    #ax[1].plot(t_plot, p3)                             # Plotting two variables in same plot
-    #print(result)
-    ax[1].legend(legnd3)
+    ax[0].plot(t_plot, p1)
+    ax[0].legend(legnd1)
+    ax[0].set_ylabel('Speed')
 
+    ax[1].plot(t_plot, p2)
+    ax[1].plot(t_plot, p3)                              # Plotting two variables in same plot
+    ax[1].legend(legnd2 + legnd3)
+    ax[1].set_ylabel('Power and angle')
+
+    plt.figure()
+    plt.plot(p2,p3)
     # Plot different variables together in same subplot
     #ax[1].plot(t_plot, p2)
     #ax[1].plot(t_plot, p3)
