@@ -5,6 +5,8 @@ import importlib
 from scipy.integrate import RK45
 import matplotlib.pyplot as plt
 import pandas as pd
+import sys
+import time
 
 
 if __name__ == '__main__':
@@ -28,7 +30,8 @@ if __name__ == '__main__':
     max_step = 5e-3
 
     # PowerFactory result
-    pf_res = val_fun.load_pf_res('tests/validation/k2a/powerfactory_res.csv')
+    # pf_res = val_fun.load_pf_res('tests/validation/k2a/powerfactory_res.csv')  # For interactive mode
+    pf_res = val_fun.load_pf_res('powerfactory_res.csv')
 
     # Python result
     x0 = ps.x0
@@ -38,8 +41,9 @@ if __name__ == '__main__':
     result_dict = defaultdict(list)
 
     print('Running dynamic simulation')
+    t_0 = time.time()  # Timer
     while t < t_end:
-        # print(t)
+        sys.stdout.write("\r%d%%" % (t / (t_end) * 100))
 
         # Simulate next step
         result = sol.step()
@@ -54,6 +58,8 @@ if __name__ == '__main__':
         # Store result variables
         result_dict['Global', 't'].append(sol.t)
         [result_dict[tuple(desc)].append(state) for desc, state in zip(ps.state_desc, sol.y)]
+
+    print('\nSimulation completed in {:.2f} seconds.'.format(time.time() - t_0))
 
     index = pd.MultiIndex.from_tuples(result_dict)
     result = pd.DataFrame(result_dict, columns=index)

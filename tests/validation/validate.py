@@ -4,6 +4,8 @@ import pandas as pd
 from collections import defaultdict
 import dynpssimpy.dynamic as dps
 from scipy.integrate import RK45
+import sys
+import time
 
 
 class MyTestCase(unittest.TestCase):
@@ -36,8 +38,9 @@ class MyTestCase(unittest.TestCase):
         result_dict = defaultdict(list)
 
         print('Running dynamic simulation')
+        t_0 = time.time()  # Timer
         while t < t_end:
-            # print(t)
+            sys.stdout.write("\r%d%%" % (t / (t_end) * 100))
 
             # Simulate next step
             result = sol.step()
@@ -53,6 +56,7 @@ class MyTestCase(unittest.TestCase):
             result_dict['Global', 't'].append(sol.t)
             [result_dict[tuple(desc)].append(state) for desc, state in zip(ps.state_desc, sol.y)]
 
+        print('\nSimulation completed in {:.2f} seconds.'.format(time.time() - t_0))
         index = pd.MultiIndex.from_tuples(result_dict)
         result = pd.DataFrame(result_dict, columns=index)
 
@@ -82,10 +86,12 @@ class MyTestCase(unittest.TestCase):
         t = 0
         result_dict = defaultdict(list)
         # monitored_variables = ['e_q', 'v_g', 'v_g_dev', 'v_pss']
+        sc_bus_idx = ps.gen_bus_idx[0]  # Needed when Kron reduction is bypassed
 
         print('Running dynamic simulation')
+        t_0 = time.time()  # Timer
         while t < t_end:
-            # print(t)
+            sys.stdout.write("\r%d%%" % (t / (t_end) * 100))
 
             # Simulate next step
             result = sol.step()
@@ -93,9 +99,9 @@ class MyTestCase(unittest.TestCase):
 
             if t >= 1 and t <= 1.05:
                 # print('Event!')
-                ps.y_bus_red_mod[0, 0] = 1e6
+                ps.y_bus_red_mod[(sc_bus_idx,)*2] = 1e6
             else:
-                ps.y_bus_red_mod[0, 0] = 0
+                ps.y_bus_red_mod[(sc_bus_idx,)*2] = 0
 
             # Store result variables
             result_dict['Global', 't'].append(sol.t)
@@ -105,6 +111,7 @@ class MyTestCase(unittest.TestCase):
 
             [result_dict[tuple(desc)].append(state) for desc, state in zip(ps.state_desc, sol.y)]
 
+        print('\nSimulation completed in {:.2f} seconds.'.format(time.time() - t_0))
         index = pd.MultiIndex.from_tuples(result_dict)
         result = pd.DataFrame(result_dict, columns=index)
 

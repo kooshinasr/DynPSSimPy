@@ -5,6 +5,8 @@ import importlib
 from scipy.integrate import RK45
 import matplotlib.pyplot as plt
 import pandas as pd
+import sys
+import time
 
 
 if __name__ == '__main__':
@@ -24,7 +26,8 @@ if __name__ == '__main__':
     max_step = 5e-3
 
     # PowerFactory result
-    pf_res = val_fun.load_pf_res('tests/validation/ieee39/powerfactory_res.csv')
+    # pf_res = val_fun.load_pf_res('tests/validation/ieee39/powerfactory_res.csv')  # For interactive mode
+    pf_res = val_fun.load_pf_res('powerfactory_res.csv')  # For interactive mode
 
     x0 = ps.x0
 
@@ -32,10 +35,12 @@ if __name__ == '__main__':
 
     t = 0
     result_dict = defaultdict(list)
+    sc_bus_idx = ps.gen_bus_idx[0]  # Needed when Kron reduction is bypassed
+    t_0 = time.time()  # Timer
 
     print('Running dynamic simulation')
     while t < t_end:
-        # print(t)
+        sys.stdout.write("\r%d%%" % (t / (t_end) * 100))
 
         # Simulate next step
         result = sol.step()
@@ -43,13 +48,15 @@ if __name__ == '__main__':
 
         if t >= 1 and t <= 1.05:
             # print('Event!')
-            ps.y_bus_red_mod[0, 0] = 1e6
+            ps.y_bus_red_mod[(sc_bus_idx,)*2] = 1e6
         else:
-            ps.y_bus_red_mod[0, 0] = 0
+            ps.y_bus_red_mod[(sc_bus_idx,)*2] = 0
 
         # Store result variables
         result_dict['Global', 't'].append(sol.t)
         [result_dict[tuple(desc)].append(state) for desc, state in zip(ps.state_desc, sol.y)]
+
+    print('\nSimulation completed in {:.2f} seconds.'.format(time.time() - t_0))
 
     index = pd.MultiIndex.from_tuples(result_dict)
     result = pd.DataFrame(result_dict, columns=index)
