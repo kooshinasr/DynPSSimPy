@@ -243,30 +243,6 @@ class PowerSystemModel:
             self.trafos_from_mat[i, idx_from] = 1
             self.trafos_to_mat[i, idx_to] = 1
 
-    def compute_result(self, type, name, res):
-        if type == 'load':
-            if res in ['p', 'q', 's', 'P', 'Q', 'S']:
-                load_idx = dps_uf.lookup_strings(name, self.loads['name'])
-                z = self.loads['Z'][load_idx]
-                bus_idx = self.loads['bus_idx'][load_idx]  # This works when kron reduction is bypassed!
-                # if bus_idx in self.reduced_bus_idx:
-                s = abs(self.v_red[bus_idx]) ** 2 / np.conj(z)
-
-                # Lower case letters (p, q, s) give result in system p.u. base
-                # Capital letters (P, Q, S) give result in ohm
-                if res.isupper():
-                    pu_mod = self.s_n
-                else:
-                    pu_mod = 1
-
-                if res in ['s', 'S']:
-                    return s*pu_mod
-                if res in ['p', 'P']:
-                    return s.real*pu_mod
-                if res in ['q', 'Q']:
-                    return s.imag*pu_mod
-
-
 
     def build_y_bus(self, type='dyn', y_ext=np.empty((0, 0))):
         # Build bus admittance matrix.
@@ -830,13 +806,18 @@ class PowerSystemModel:
             for avr in self.avr_mdls['SEXS'].par:
                 for var in varnames:
                     desc.append([avr[0], var])
-        elif type == 'bus':
-            for i in range(self.n_bus):
+        elif type == 'load':
+            for load in self.loads:
+                print(load)
                 for var in varnames:
                     if var == 'v':
-                        desc.append([self.buses[i][0],var])
-                    if var == 'i_inj':
-                        desc.append([self.buses[i][0],var])
+                        desc.append([load[0],var])
+                    if var == 'P_l':
+                        desc.append([load[0],var])
+                    if var == 'Q_l':
+                        desc.append([load[0],var])
+                    if var == 'S_l':
+                        desc.append([load[0],var])
         return desc
 
     def store_vars(self, type, varnames, vardesc, resultdict):
@@ -850,11 +831,50 @@ class PowerSystemModel:
             store_vars_out.extend(store_vars_in)
             [resultdict[tuple(desc)].append(out) for desc, out in zip(vardesc, store_vars_out)]
 
-        elif type == 'bus':
+        elif type == 'load':
             if 'v' in varnames:
                 [resultdict[tuple(desc)].append(out) for desc, out in zip(vardesc, self.v_red)]
-            if 'P_e' in varnames:
-                pass
+            if any(x in ['P_l', 'Q_l', 'S_l'] for x in varnames):
+                store_vars = []
+                for load in self.loads:
+                    name = load[0]
+                    load_idx = dps_uf.lookup_strings(name, self.loads['name'])
+                    z = self.loads['Z'][load_idx]
+                    bus_idx = self.loads['bus_idx'][load_idx]  # This works when kron reduction is bypassed!
+                    # if bus_idx in self.reduced_bus_idx:
+                    s = abs(self.v_red[bus_idx]) ** 2 / np.conj(z)
+                    store_vars.append(s)
+
+                if 'S_l' in varnames:
+                    [resultdict[tuple(desc)].append(out) for desc, out in zip(vardesc, store_vars)]
+                if 'P_l' in varnames:
+                    [resultdict[tuple(desc)].append(out) for desc, out in zip(vardesc, np.real(store_vars))]
+                if 'Q_l' in varnames:
+                    [resultdict[tuple(desc)].append(out) for desc, out in zip(vardesc, np.imag(store_vars))]
+
+    def compute_result(self, type, name, res):
+        if type == 'load':
+            if res in ['p', 'q', 's', 'P', 'Q', 'S']:
+                load_idx = dps_uf.lookup_strings(name, self.loads['name'])
+                z = self.loads['Z'][load_idx]
+                bus_idx = self.loads['bus_idx'][load_idx]  # This works when kron reduction is bypassed!
+                # if bus_idx in self.reduced_bus_idx:
+                s = abs(self.v_red[bus_idx]) ** 2 / np.conj(z)
+
+                # Lower case letters (p, q, s) give result in system p.u. base
+                # Capital letters (P, Q, S) give result in ohm
+                if res.isupper():
+                    pu_mod = self.s_n
+                else:
+                    pu_mod = 1
+
+                if res in ['s', 'S']:
+                    return s*pu_mod
+                if res in ['p', 'P']:
+                    return s.real*pu_mod
+                if res in ['q', 'Q']:
+                    return s.imag*pu_mod
+
 
 if __name__ == '__main__':
     from scipy.integrate import RK23, RK45, solve_ivp

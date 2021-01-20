@@ -45,10 +45,10 @@ if __name__ == '__main__':
     #avr_outs = []
     #gov_outs = []
     gen_vars = ['P_e', 'I_g']
-    bus_vars = ['v']
+    load_vars = ['P_l']
 
     gen_var_desc = ps.var_desc('GEN',gen_vars)
-    bus_var_desc = ps.var_desc('bus',bus_vars)
+    load_var_desc = ps.var_desc('load',load_vars)
 
     event_flag = True
     event_flag2 = True
@@ -74,12 +74,14 @@ if __name__ == '__main__':
         result_dict['Global', 't'].append(sol.t)                                                # Time
         [result_dict[tuple(desc)].append(state) for desc, state in zip(ps.state_desc, x)]       # States
         ps.store_vars('GEN',gen_vars, gen_var_desc, result_dict)                                # Additional gen vars
-        ps.store_vars('bus',bus_vars, bus_var_desc, result_dict)                                # Additional bus vars
+        ps.store_vars('load',load_vars, load_var_desc, result_dict)                              # Load vars
 
     print('   Simulation completed in {:.2f} seconds.'.format(time.time() - t_0))
     index = pd.MultiIndex.from_tuples(result_dict)
     result = pd.DataFrame(result_dict, columns=index)
     t_plot = result[('Global', 't')]
+
+    #ps.compute_result('load', 'L1', 'p')
 
     # Plotting section
     fig, ax = plt.subplots(2, sharex = True)
@@ -96,14 +98,14 @@ if __name__ == '__main__':
     p2 = result.xs(key=var2, axis='columns', level=1)   # time domain values for var2
     legnd2 = list(np.array(var2 + ': ') + p2.columns)   # legend for var2
 
-    var3 = 'P_e'  # variable to plot
+    var3 = 'P_l'  # variable to plot
     p3 = result.xs(key=var3, axis='columns', level=1)
     legnd3 = list(np.array(var3 + ': ') + p3.columns)
 
-    ax[1].plot(t_plot, p2)
+    ax[1].plot(t_plot, p3)
     #ax[1].plot(t_plot, p3)                             # Plotting two variables in same plot
-    print(result)
-    ax[1].legend(legnd2+ legnd3)
+    #print(result)
+    ax[1].legend(legnd3)
 
     # Plot different variables together in same subplot
     #ax[1].plot(t_plot, p2)
