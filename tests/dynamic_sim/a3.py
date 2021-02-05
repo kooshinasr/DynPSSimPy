@@ -20,6 +20,10 @@ if __name__ == '__main__':
     model = model_data.load()
     t_0 = time.time()
 
+    if not model['gov_on']: model.pop('gov', None)
+    if not model['avr_on']: model.pop('avr', None)
+    if not model['pss_on']: model.pop('pss', None)
+
     ps = dps.PowerSystemModel(model=model)
     ps.pf_max_it = 10 # Max iterations for power flow
     ps.power_flow()
@@ -46,7 +50,7 @@ if __name__ == '__main__':
     # powers ['P_l', 'Q_l', 'S_l'] at load buses.
     #avr_outs = []
     #gov_outs = []
-    gen_vars = ['P_e', 'I_g']
+    gen_vars = ['P_e', 'I_g','P_m']
     load_vars = ['P_l']  # l subscript means "load"
 
     gen_var_desc = ps.var_desc('GEN',gen_vars)
@@ -65,15 +69,13 @@ if __name__ == '__main__':
         if t >= 1 and event_flag:
             event_flag = False
             ps.network_event('sc','B2', 'activate')
-
             #ps.network_event('line', 'L1-2', 'disconnect')
-            #x[ps.gen_mdls['GEN'].state_idx['angle'][0]] += 1
-
-        if t >= 1.01 and event_flag2:
+            #x[ps.gen_mdls['GEN'].state_idx['angle'][0]] += 0.01
+        if t >= 1.2 and event_flag2:
             event_flag2 = False
             ps.network_event('sc', 'B2', 'deactivate')
-
-            #ps.network_event('line', 'L1-2', 'connect')
+            #ps.network_event('line', 'L1-2', 'disconnect')
+            #ps.gov_mdls['MYGOV'].int_par['wref'][1] += 0.02
 
         # Store result
         result_dict['Global', 't'].append(sol.t)                                                # Time
@@ -85,12 +87,12 @@ if __name__ == '__main__':
     index = pd.MultiIndex.from_tuples(result_dict)
     result = pd.DataFrame(result_dict, columns=index)
     t_plot = result[('Global', 't')]
-
     # Plotting section
     fig, ax = plt.subplots(2, sharex = True)
 
     var1 = 'speed'                                      # variable to plot
     p1 = result.xs(key=var1, axis='columns', level=1)   # time domain values for var1
+    p1 = p1[['G1']]                                     # Double brackets to access specific devices (e.g. G1)
     legnd1 = list(np.array(var1 + ': ')+p1.columns)     # legend for var1
 
     var2 = 'angle'                                      # variable to plot

@@ -792,13 +792,12 @@ class PowerSystemModel:
     def var_desc(self, type, varnames):
         desc = []
         if type == 'GEN':
-            outputs = list(set(varnames) & set(self.gen_mdls['GEN'].output_list))
-            inputs = list(set(varnames) & set(self.gen_mdls['GEN'].input_list))
-            varnames = inputs + outputs
-            for gen in self.gen_mdls['GEN'].par:
-                for var in varnames:
+            outputs = sorted(set(varnames) & set(self.gen_mdls['GEN'].output_list), key = varnames.index)
+            inputs = sorted(set(varnames) & set(self.gen_mdls['GEN'].input_list), key = varnames.index)
+            varnames =  outputs + inputs
+            for var in varnames:
+                for gen in self.gen_mdls['GEN'].par:
                     desc.append([gen[0],var])
-
         elif type == 'AVR':
             outputs = list(set(varnames) & set(self.avr_mdls['SEXS'].output_list))
             inputs = list(set(varnames) & set(self.avr_mdls['SEXS'].input_list))
@@ -821,15 +820,17 @@ class PowerSystemModel:
 
     def store_vars(self, type, varnames, vardesc, resultdict):
         if type == 'GEN':
-            var_outs = list(set(varnames) & set(self.gen_mdls['GEN'].output_list))
-            var_ins = list(set(varnames) & set(self.gen_mdls['GEN'].input_list))
+
+            var_outs = sorted(set(varnames) & set(self.gen_mdls['GEN'].output_list), key = varnames.index)
+            var_ins = sorted(set(varnames) & set(self.gen_mdls['GEN'].input_list), key = varnames.index)
             store_vars_out = self.gen_mdls['GEN'].output[var_outs]
-            store_vars_out = [i for sub in store_vars_out for i in sub]
-            store_vars_in = self.gen_mdls['GEN'].output[var_ins]
-            store_vars_in = [i for sub in store_vars_in for i in sub]
+
+            store_vars_out = [i[k] for k in range(len(store_vars_out[0])) for i in store_vars_out]
+
+            store_vars_in = self.gen_mdls['GEN'].input[var_ins]
+            store_vars_in = [i[k] for k in range(len(store_vars_in[0])) for i in store_vars_in]
             store_vars_out.extend(store_vars_in)
             [resultdict[tuple(desc)].append(out) for desc, out in zip(vardesc, store_vars_out)]
-
         elif type == 'load':
             if 'v' in varnames:
                 [resultdict[tuple(desc)].append(out) for desc, out in zip(vardesc, self.v_red)]

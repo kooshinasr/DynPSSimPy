@@ -2,7 +2,7 @@ import numpy as np
 import dynpssimpy.plotting as dps_plt
 import dynpssimpy.utility_functions as utils
 import matplotlib.pyplot as plt
-
+import pandas as pd
 
 class PowerSystemModelLinearization:
     def __init__(self, ps):
@@ -23,6 +23,7 @@ class PowerSystemModelLinearization:
         # Right/left rigenvectors (rev/lev)
         self.rev = evs
         self.lev = np.linalg.inv(self.rev)
+        self.p_f = np.multiply(self.rev, np.transpose(self.lev))
         self.damping = -self.eigs.real / abs(self.eigs)
         self.freq = self.eigs.imag / (2 * np.pi)
 
@@ -105,6 +106,14 @@ class PowerSystemModelLinearization:
         if sorted:
             idx = idx[np.argsort(self.damping[idx])]
         return idx
+
+    def pf_table(self):
+        col =  ['{0:.3g}'.format(x) for x in self.eigs]
+        rows = self.ps.state_desc
+        p_f = pd.DataFrame(np.abs(self.p_f), columns = col, index = rows)
+        rev_abs = pd.DataFrame(np.abs(self.rev), columns = col, index = rows)
+        rev_ang = pd.DataFrame(np.angle(self.rev)*180/np.pi, columns = col, index = rows)
+        return p_f, rev_abs, rev_ang
 
 
 if __name__ == '__main__':

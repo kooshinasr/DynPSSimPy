@@ -34,6 +34,38 @@ class SEXS:
         output['E_f'][:] = np.minimum(np.maximum(x['e_f'], p['E_min']), p['E_max'])
 
 
+class MYAVR:
+    def __init__(self):
+        self.state_list = ['xa', 'e_f']
+        self.int_par_list = []
+        self.input_list = ['v_dev', 'v_pss']
+        self.output_list = ['E_f']
+
+    @staticmethod
+    def initialize(x_0, input, output, p, int_par):
+        x_0['x'][:] = (p['T_a'] - p['T_b'])
+        x_0['e_f'][:] = output['E_f']
+
+    @staticmethod
+    def _update(dx, x, input, output, p, int_par):
+
+        u = input['v_dev'] + input['v_pss'] + int_par['x_bias']
+        v_1 = 1 / p['T_b'] * (p['T_a'] * u - x['x'])
+
+        dx['x'][:] = v_1 - u
+        dx['e_f'][:] = 1/p['T_e'] * (p['K'] * v_1 - x['e_f'])
+
+        # Lims on state variable e_f (clamping)
+        lower_lim_idx = (x['e_f'] <= p['E_min']) & (dx['e_f'] < 0)
+        dx['e_f'][lower_lim_idx] *= 0
+
+        upper_lim_idx = (x['e_f'] >= p['E_max']) & (dx['e_f'] > 0)
+        dx['e_f'][upper_lim_idx] *= 0
+
+        output['E_f'][:] = np.minimum(np.maximum(x['e_f'], p['E_min']), p['E_max'])
+
+
+
 if __name__ == '__main__':
     # Simple speed test of model (jit vs nojit)
     import time

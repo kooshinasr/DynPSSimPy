@@ -39,3 +39,28 @@ class TGOV1:
 
         upper_lim_idx = (x['x_1'] >= p['V_max']) & (dx['x_1'] > 0)
         dx['x_1'][upper_lim_idx] *= 0
+
+
+class MYGOV:
+    def __init__(self):
+        self.state_list = ['x_1', 'x_2']
+        self.int_par_list = ['P0', 'wref']
+        self.input_list = ['speed_dev']
+        self.output_list = ['P_m']
+
+    @staticmethod
+    def initialize(x_0, input, output, p, int_par):
+        x_0['x_1'][:] = output['P_m']
+        x_0['x_2'][:] = 0
+        int_par['P0'] = output['P_m']
+
+    @staticmethod
+    def _update(dx, x, input, output, p, int_par):
+
+        speed_dev = int_par['wref'] + input['speed_dev']
+
+        dP = x['x_1'] - int_par['P0'] - x['x_2']
+
+        dx['x_1'][:] = (speed_dev-p['R']*dP)*p['K']
+        dx['x_2'][:] = speed_dev*p['Kw']
+        output['P_m'][:] = x['x_1']
