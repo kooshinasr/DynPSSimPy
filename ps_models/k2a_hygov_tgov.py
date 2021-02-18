@@ -1,5 +1,5 @@
-# Kundor two-area system with HYGOV
-# Added this system file to not make changes to the original system
+# Kunder two-area system
+# Showing how to equip different generators with different governor models
 
 def load():
     return {
@@ -69,8 +69,11 @@ def load():
                 ['name', 'gen',  'R', 'D_t', 'V_min', 'V_max', 'T_2', 'T_3', 'T_4', 'P_m0', 'T_w'],
                 ['GOV1',  'G1', 0.05,   0.0,       0,       1,  0.36,   6.0,  67.6,  0.777,   1.0],
                 ['GOV2',  'G2', 0.05,   0.0,       0,       1,  0.36,   6.0,  67.6,  0.777,   1.0],
-                ['GOV3',  'G3', 0.05,   0.0,       0,       1,  0.36,   6.0,  67.6,  0.800,   1.0],
-                ['GOV4',  'G4', 0.05,   0.0,       0,       1,  0.36,   6.0,  67.6,  0.777,   1.0],
+            ],
+            'TGOV1': [
+                ['name', 'gen', 'R', 'D_t', 'V_min', 'V_max', 'T_1', 'T_2', 'T_3'],
+                ['GOV3', 'G3', 0.05, 0.02, 0, 1, 0.1, 0.09, 0.2],
+                ['GOV4', 'G4', 0.05, 0.02, 0, 1, 0.1, 0.09, 0.2],
             ]
         },
 

@@ -65,6 +65,7 @@ class MYGOV:
         dx['x_2'][:] = speed_dev*p['Kw']
         output['P_m'][:] = x['x_1']
 
+
 class HYGOV:
     """
     purpose: Implementing a simple hydrogovernor model
@@ -72,6 +73,7 @@ class HYGOV:
     input: speed deviation
     output: mechanical power reference
     """
+
     def __init__(self):
         self.state_list = ['x_1', 'x_2', 'x_3'] # three states
         self.int_par_list = ['x_1_bias']

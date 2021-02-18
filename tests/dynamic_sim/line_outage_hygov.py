@@ -15,7 +15,7 @@ if __name__ == '__main__':
     importlib.reload(dps)
 
     # Load model
-    import ps_models.k2a_with_hygov as model_data
+    import ps_models.k2a_hygov_tgov as model_data
     # import ps_models.ieee39 as model_data
     # import ps_models.sm_ib as model_data
     # import ps_models.sm_load as model_data
