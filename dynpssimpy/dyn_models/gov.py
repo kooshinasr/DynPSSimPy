@@ -95,7 +95,6 @@ class HYGOV:
 
     @staticmethod
     def _update(dx, x, input, output, p, int_par):
-
         speed_dev = input['speed_dev']
         v_1 = 1 / p['R'] * (speed_dev + int_par['x_1_bias'])
         v_2 = np.minimum(np.maximum(x['x_1'], p['V_min']), p['V_max'])
@@ -118,4 +117,51 @@ class HYGOV:
         upper_lim_idx = (x['x_1'] >= p['V_max']) & (dx['x_1'] > 0)
         dx['x_1'][upper_lim_idx] *= 0
 
+class HYGOV_LFC(HYGOV):
+    """
+    purpose: Implementing secondary control on the HYGOV.
+    """
+    def __init__(self):
+        super().__init__()
+        self.state_list.append('x_11')
+        self.state_list.append('x_12')
+
+    # Do not need to do anything with initialize, all new states are zero
+
+    # Trying to override this methods to make use of the PID feedforward to eliminate steady-state error
+    @staticmethod
+    def _update(dx, x, input, output, p, int_par):
+
+        # Primary control loop
+        speed_dev = input['speed_dev']
+        v_1 = 1 / p['R'] * (speed_dev + int_par['x_1_bias'])
+        v_2 = np.minimum(np.maximum(x['x_1'], p['V_min']), p['V_max'])
+        v_3 = p['T_3'] / p['T_4'] * v_2 - 1 / p['T_4'] * x['x_2']
+
+        v_4 = -p['P_m0'] * p['T_w'] / (p['P_m0'] * p['T_w'] / 2) * v_3 - 1 / (
+                    p['P_m0'] * p['T_w'] / 2) * x['x_3']
+        delta_p_m = v_4 - p['D_t'] * speed_dev
+
+        # Secondary control loop
+        s_1 = p['K_p']*speed_dev
+        s_2 = (p['K_d']*speed_dev-x['x_11'])/(p['K_d']/10) # limiter time constant 1/10 of K_d
+        s_3 = x['x_12']
+        delta_p_m_secondary = s_1 + s_2 + s_3
+
+        # Add power signal from conventional HYGOV with signal from secondary control
+        output['P_m'][:] = delta_p_m + delta_p_m_secondary
+
+        # Update state variables
+        dx['x_1'][:] = 1 / p['T_2'] * (v_1 - v_2)
+        dx['x_2'][:] = v_3 - v_2
+        dx['x_3'][:] = v_4 - v_3
+        dx['x_11'][:] = s_2
+        dx['x_12'][:] = p['K_i']*speed_dev
+
+        # Lims on state variable x_1 (clamping)
+        lower_lim_idx = (x['x_1'] <= p['V_min']) & (dx['x_1'] < 0)
+        dx['x_1'][lower_lim_idx] *= 0
+
+        upper_lim_idx = (x['x_1'] >= p['V_max']) & (dx['x_1'] > 0)
+        dx['x_1'][upper_lim_idx] *= 0
 

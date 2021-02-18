@@ -15,7 +15,7 @@ if __name__ == '__main__':
     importlib.reload(dps)
 
     # Load model
-    import ps_models.k2a_hygov_tgov as model_data
+    import ps_models.k2a_with_hygov as model_data
     # import ps_models.ieee39 as model_data
     # import ps_models.sm_ib as model_data
     # import ps_models.sm_load as model_data
@@ -27,7 +27,7 @@ if __name__ == '__main__':
     ps.init_dyn_sim()
 
     # Solver
-    t_end = 10
+    t_end = 30
     sol = dps_uf.ModifiedEuler(ps.ode_fun, 0, ps.x0, t_end, max_step=10e-3)
 
     t = 0
@@ -48,9 +48,9 @@ if __name__ == '__main__':
             event_flag = False
             ps.network_event('line', 'L7-8-1', 'disconnect')
 
-        if t > 1.1 and event_flag2:
-            event_flag2 = False
-            ps.network_event('line', 'L7-8-1', 'connect')
+        #if t > 1.1 and event_flag2:
+        #    event_flag2 = False
+        #    ps.network_event('line', 'L7-8-1', 'connect')
 
         # Store result
         result_dict['Global', 't'].append(sol.t)
