@@ -10,12 +10,13 @@ import dynpssimpy.dyn_models.avr as avr_lib
 import dynpssimpy.dyn_models.gov as gov_lib
 import dynpssimpy.dyn_models.pss as pss_lib
 import dynpssimpy.dyn_models.gen as gen_lib
+import dynpssimpy.dyn_models.ace as ace_lib # ADDED
 import importlib
 from scipy import sparse as sp
 from scipy.sparse import linalg as sp_linalg
 from scipy.integrate import RK45
 
-[importlib.reload(lib) for lib in [gen_lib, gov_lib, avr_lib, pss_lib]]
+[importlib.reload(lib) for lib in [gen_lib, gov_lib, avr_lib, pss_lib, ace_lib]]
 
 
 class PowerSystemModel:
@@ -43,7 +44,7 @@ class PowerSystemModel:
                 setattr(self, td, np.empty(0))
 
         # Get dynamic data: Convert dicts with lists to dicts with np.arrays
-        for td in ['gov', 'avr', 'pss', 'generators']:
+        for td in ['gov', 'avr', 'pss', 'generators', 'ace']: # ADDED ACE
             setattr(self, td, dict())
             if td in model and len(model[td]) > 0:
                 for key in model[td].keys():
@@ -55,6 +56,7 @@ class PowerSystemModel:
 
                     entries = [tuple(entry) for entry in data]
                     dtypes = [(name_, dtype_) for name_, dtype_ in zip(header, col_dtypes)]
+                    print(key)
                     getattr(self, td)[key] = np.array(entries, dtype=dtypes)
 
         # Add some potentially missing fields
@@ -485,9 +487,12 @@ class PowerSystemModel:
         self.avr_mdls = dict()
         self.pss_mdls = dict()
 
-        for i, (input_data, container, library) in enumerate(zip([self.gen, self.gov, self.pss, self.avr],
-                                                                 [self.gen_mdls, self.gov_mdls, self.pss_mdls, self.avr_mdls],
-                                                                 [gen_lib, gov_lib, pss_lib, avr_lib])):
+        # ADDED
+        self.ace_mdls = dict()
+
+        for i, (input_data, container, library) in enumerate(zip([self.gen, self.gov, self.pss, self.avr, self.ace],
+                                                                 [self.gen_mdls, self.gov_mdls, self.pss_mdls, self.avr_mdls, self.ace_mdls],
+                                                                 [gen_lib, gov_lib, pss_lib, avr_lib, ace_lib])):
 
             for key in input_data.keys():
                 data = input_data[key].copy()
@@ -531,6 +536,40 @@ class PowerSystemModel:
                     mdl.bus_idx = dps_uf.lookup_strings(data['bus'], self.buses['name'])
                     mdl.bus_idx_red = self.get_bus_idx_red(data['bus'])
                     mdl.int_par['f'] = self.f
+
+                elif i == 4:  # Do this for ACE only
+                    mdl.active = np.ones(len(data), dtype=bool)
+
+                    buses_1 = []
+                    buses_2 = []
+                    buses_to_keep_1 = data['bus1']
+                    buses_to_keep_2 = data['bus2']
+                    for bus1, bus2 in zip(buses_to_keep_1, buses_to_keep_2):
+                        for bus, v in self.buses:
+                            if bus == bus1:
+                                buses_1.append(bus)
+                            if bus == bus2:
+                                buses_2.append(bus)
+
+                    mdl.bus_idx_1 = dps_uf.lookup_strings(buses_1, self.buses['name'])
+                    mdl.bus_idx_2 = dps_uf.lookup_strings(buses_2, self.buses['name'])
+                    mdl.bus_idx_red_1 = self.get_bus_idx_red(buses_1)
+                    mdl.bus_idx_red_2 = self.get_bus_idx_red(buses_2)
+
+                    mdl.int_par['f'] = self.f
+
+                    # Getting the start tie-line power flow
+                    idx1 = mdl.bus_idx_red_1
+                    idx2 = mdl.bus_idx_red_2
+
+                    # HARDCODED JUST TO SEE IF IT WORKS IN KUNDUR. CHANGE THIS LATER.
+                    # PROBLEM: EXTRACTING THE VALUES FROM self.y_bus_red as an array instead of np.matrix
+                    y_bus_tmp = [-0.2000200020002001 + 2.0002000200020005j, -0.2000200020002001 + 2.0002000200020005j, -0.2000200020002001 + 2.0002000200020005j, -0.2000200020002001 + 2.0002000200020005j]
+                    i_line = y_bus_tmp * (self.v_red[idx1] - self.v_red[idx2])
+
+                    p_line = -(self.v_red[idx1] * np.conj(i_line)).real  # REMOVE np.abs when needed
+                    mdl.int_par['Ptie0'] = p_line
+                    print(mdl.int_par['Ptie0'])
 
                 else:  # Do this for control models only
                     mdl.active = np.ones(len(data), dtype=bool)
@@ -604,8 +643,6 @@ class PowerSystemModel:
                     self.x0[dm.idx].view(dtype=dm.dtypes),
                     dm.input, dm.output, dm.par, dm.int_par)
 
-        # self.dyn_mdls = {**self.avr_mdls, **self.gov_mdls, **self.pss_mdls}
-
         # AVR
         for key, dm in self.avr_mdls.items():
             if hasattr(dm, 'initialize'):
@@ -637,6 +674,11 @@ class PowerSystemModel:
                     self.x0[dm.idx].view(dtype=dm.dtypes),
                     dm.input, dm.output, dm.par, dm.int_par)
 
+        # ACE
+        for key, dm in self.ace_mdls.items():
+            if hasattr(dm, 'initialize'):
+                pass
+
         # PSS
         for key, dm in self.pss_mdls.items():
             if hasattr(dm, 'initialize'):
@@ -665,7 +707,6 @@ class PowerSystemModel:
         dx = np.zeros(self.n_states)
 
         # GOV
-        # self.speed_dev = x[self.gen_mdls['GEN'].state_idx['speed']]
         for key, dm in self.gov_mdls.items():
             input = np.zeros(dm.n_units, dtype=float)
             for gen_key, (mask, idx) in dm.gen_idx.items():
@@ -684,9 +725,44 @@ class PowerSystemModel:
             for gen_key, (mask, idx) in dm.gen_idx.items():
                 gen_mdl = self.gen_mdls[gen_key]
                 gen_mdl.input['P_m'][idx[dm.active[mask]]] = dm.output['P_m'][dm.active & mask]
+        # GOV END
 
-            # self.P_m[active_gov_gen_idx] = output[active_mdls]
-            # self.p_m[active_gov_gen_idx] = (self.P_m[active_gov_gen_idx] * self.P_n_gen[active_gov_gen_idx] / self.s_n)
+        # ACE: NEW. Placed after GOV, to do += on the input to the generators Pm
+        for key, dm in self.ace_mdls.items():
+            for key2, dm2 in self.gov_mdls.items():
+                input = np.zeros(dm2.n_units, dtype=float)
+                for gen_key, (mask, idx) in dm2.gen_idx.items():
+                    # mask: Boolean mask to map controls to generators
+                    # idx: Points to which generators are controlled
+                    gen_mdl = self.gen_mdls[gen_key]
+                    x_loc = x[gen_mdl.idx]
+                    input[mask] = -x_loc[gen_mdl.state_idx['speed'][idx]]
+                    dm.input['speed_dev'][mask] = -x_loc[gen_mdl.state_idx['speed'][idx]]
+
+                    idx1 = dm.bus_idx_red_1
+                    idx2 = dm.bus_idx_red_2
+
+                    # FIND A WAY TO WORK AROUND THIS. HARDCODED AT THE MOMENT
+                    y_bus_tmp = [-0.2000200020002001 + 2.0002000200020005j, -0.2000200020002001 + 2.0002000200020005j, -0.2000200020002001 + 2.0002000200020005j, -0.2000200020002001 + 2.0002000200020005j]
+
+                    i_line = y_bus_tmp * (self.v_red[idx1] - self.v_red[idx2])
+                    p_line = -(self.v_red[idx1] * np.conj(i_line)).real  # REMOVE np.abs when needed
+                    dm.input['p_tie'][mask] = p_line
+
+            dm.ace = dm.update(
+                dx[dm.idx].view(dtype=dm.dtypes),
+                x[dm.idx].view(dtype=dm.dtypes),
+                dm.input, dm.output, dm.par, dm.int_par)
+
+            # Append the ACE power signals to the generator power references
+            for key2, dm2 in self.gov_mdls.items():
+                for gen_key, (mask, idx) in dm2.gen_idx.items():
+                    gen_mdl = self.gen_mdls[gen_key]
+                    # Power signal from ace is added to generator Power reference.
+                    # 0.25 is included for KUNDUR since all generators initially supplies the same amount of active power
+                    gen_mdl.input['P_m'][idx[dm.active[mask]]] += dm.output['P_ace'][dm.active & mask]
+        # ACE END
+
 
         # PSS
         for key, dm in self.pss_mdls.items():
@@ -705,6 +781,7 @@ class PowerSystemModel:
             for gen_key, (mask, idx) in dm.gen_idx.items():
                 gen_mdl = self.gen_mdls[gen_key]
                 gen_mdl.input['v_pss'][idx[dm.active[mask]]] = dm.output['v_pss'][dm.active & mask]
+        # PSS END
 
         # AVR
         for key, dm in self.avr_mdls.items():
@@ -724,6 +801,7 @@ class PowerSystemModel:
             for gen_key, (mask, idx) in dm.gen_idx.items():
                 gen_mdl = self.gen_mdls[gen_key]
                 gen_mdl.input['E_f'][idx[dm.active[mask]]] = dm.output['E_f'][dm.active & mask]
+        # AVR END
 
         # Generators
         for key, dm in self.gen_mdls.items():
@@ -735,7 +813,7 @@ class PowerSystemModel:
                 dx[dm.idx].view(dtype=dm.dtypes),
                 x[dm.idx].view(dtype=dm.dtypes),
                 dm.input, dm.output, dm.par, dm.int_par)
-
+        # GENERATORS END
         return dx
 
     def network_event(self, event_type, name, action):
@@ -764,6 +842,10 @@ class PowerSystemModel:
 
             idx = dps_uf.lookup_strings(name, self.buses['name'])
             self.y_bus_red[idx,idx] += 1j*sign * 1e15
+
+        elif event_type == 'load_increase':
+            idx = dps_uf.lookup_strings(name, self.buses['name'])
+            self.y_bus_red[idx, idx] += 0.1
 
     def apply_inputs(self, input_desc, u):
         # NB: Experimental

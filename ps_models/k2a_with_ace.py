@@ -1,5 +1,6 @@
 # Kundor two-area system with HYGOV
-# Added this system file to not make changes to the original system
+
+# THIS FILE IS ADDED TO TRY TO SEE IF THE CENTRAL REGULATOR (ACE) WORKS.
 
 def load():
     return {
@@ -64,31 +65,6 @@ def load():
             ]
         },
 
-        'gov0': {
-            'HYGOV_LFC': [  # 0.36, 6.0, 67.6
-                # inspired by https://ieeexplore.ieee.org/document/6662824, both values and model
-                ['name', 'gen',  'R', 'D_t', 'V_min', 'V_max', 'T_2', 'T_3', 'T_4', 'P_m0', 'T_w', 'K_p', 'K_i', 'K_d'],
-                ['GOV1',  'G1', 0.05,   0.0,       0,       1,  0.36,   6.0,  67.6,  0.777,   1.0, 0.056,   8.5,  7.87],
-                ['GOV2',  'G2', 0.05,   0.0,       0,       1,  0.36,   6.0,  67.6,  0.777,   1.0, 0.056,   8.5,  7.87],
-                ['GOV3',  'G3', 0.05,   0.0,       0,       1,  0.36,   6.0,  67.6,  0.800,   1.0, 0.056,   8.5,  7.87],
-                ['GOV4',  'G4', 0.05,   0.0,       0,       1,  0.36,   6.0,  67.6,  0.777,   1.0, 0.056,   8.5,  7.87],
-            ]
-        },
-
-        'gov0': {
-            'HYGOV_LFC': [  # 0.36, 6.0, 67.6
-                # inspired by https://ieeexplore.ieee.org/document/6662824, both values and model
-                ['name', 'gen', 'R', 'D_t', 'V_min', 'V_max', 'T_2', 'T_3', 'T_4', 'P_m0', 'T_w', 'K_p', 'K_i', 'K_d'],
-                ['GOV1', 'G1', 0.05, 0.0, 0, 1, 0.36, 6.0, 67.6, 0.777, 1.0, 0.056, 8.5, 7.87],
-            ],
-            'HYGOV': [
-                ['name', 'gen', 'R', 'D_t', 'V_min', 'V_max', 'T_2', 'T_3', 'T_4', 'P_m0', 'T_w'],
-                ['GOV2', 'G2', 0.05, 0.0, 0, 1, 0.36, 6.0, 67.6, 0.777, 1.0],
-                ['GOV3', 'G3', 0.05, 0.0, 0, 1, 0.36, 6.0, 67.6, 0.777, 1.0],
-                ['GOV4', 'G4', 0.05, 0.0, 0, 1, 0.36, 6.0, 67.6, 0.800, 1.0],
-            ]
-        },
-
         'gov': {
             'HYGOV': [
                 ['name', 'gen', 'R', 'D_t', 'V_min', 'V_max', 'T_2', 'T_3', 'T_4', 'P_m0', 'T_w'],
@@ -97,6 +73,21 @@ def load():
                 ['GOV3', 'G3', 0.05, 0.0, 0, 1, 0.36, 6.0, 67.6, 0.800, 1.0],
                 ['GOV4', 'G4', 0.05, 0.0, 0, 1, 0.36, 6.0, 67.6, 0.777, 1.0],
             ]
+        },
+
+        'ace0': {
+            # AT THE MOMENT, HAVE TO INCLUDE ACE AT ALL GENERATORS
+            # BUT, THE ACEs having the same bus1 and bus2 (in that order) are essentially using the same centralized ACE
+            # Was some difficulities regarding which generator reference power to be adjusted if this was not done
+            'ACE_FIRST': [
+                ['name', 'bus1', 'bus2',       'lambda', 'K_p', 'K_i', 'alpha'],
+                ['ACE1',   'B7',   'B8', 200 * 50 / 900,   0.2,  0.2,     0.25],
+                ['ACE2',   'B7',   'B8', 200 * 50 / 900,   0.2,  0.2,     0.25],
+                ['ACE3',   'B8',   'B7', 200 * 50 / 900,   0.5,  0.2,     0.25],
+                ['ACE4',   'B8',   'B7', 200 * 50 / 900,   0.5,  0.2,     0.25],
+            ]
+            # Values now: The first AGC1 (ace1 and ace2 is the same) constains a lower K_p than AGC2.
+            # Got input from a fellow student saying these could be related to participation factors.
         },
 
         'avr': {

@@ -121,7 +121,6 @@ class HYGOV_LFC(HYGOV):
     """
     purpose: Implementing secondary control on the HYGOV.
              This is based on Local frequency error -> thereby being distributed frequency control.
-
     """
     def __init__(self):
         super().__init__()
