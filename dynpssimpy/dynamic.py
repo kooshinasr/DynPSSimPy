@@ -567,7 +567,7 @@ class PowerSystemModel:
                     y_bus_tmp = [-0.2000200020002001 + 2.0002000200020005j, -0.2000200020002001 + 2.0002000200020005j, -0.2000200020002001 + 2.0002000200020005j, -0.2000200020002001 + 2.0002000200020005j]
                     i_line = y_bus_tmp * (self.v_red[idx1] - self.v_red[idx2])
 
-                    p_line = -(self.v_red[idx1] * np.conj(i_line)).real  # REMOVE np.abs when needed
+                    p_line = -(self.v_red[idx1] * np.conj(i_line)).real
                     mdl.int_par['Ptie0'] = p_line
                     print(mdl.int_par['Ptie0'])
 
@@ -666,7 +666,6 @@ class PowerSystemModel:
                     gen_mdl = self.gen_mdls[gen_key]
                     dm.output['P_m'][mask] = gen_mdl.input['P_m'][idx]
 
-
                 # for gen_key in dm.gen_mdl_list:
                 #     P_m_0[dm.gen_mdl_3 == gen_key] = self.gen_mdls[gen_key].P_m[dm.gen_idx_2[gen_key]]
 
@@ -732,8 +731,6 @@ class PowerSystemModel:
             for key2, dm2 in self.gov_mdls.items():
                 input = np.zeros(dm2.n_units, dtype=float)
                 for gen_key, (mask, idx) in dm2.gen_idx.items():
-                    # mask: Boolean mask to map controls to generators
-                    # idx: Points to which generators are controlled
                     gen_mdl = self.gen_mdls[gen_key]
                     x_loc = x[gen_mdl.idx]
                     input[mask] = -x_loc[gen_mdl.state_idx['speed'][idx]]
@@ -758,8 +755,8 @@ class PowerSystemModel:
             for key2, dm2 in self.gov_mdls.items():
                 for gen_key, (mask, idx) in dm2.gen_idx.items():
                     gen_mdl = self.gen_mdls[gen_key]
+
                     # Power signal from ace is added to generator Power reference.
-                    # 0.25 is included for KUNDUR since all generators initially supplies the same amount of active power
                     gen_mdl.input['P_m'][idx[dm.active[mask]]] += dm.output['P_ace'][dm.active & mask]
         # ACE END
 
