@@ -564,9 +564,7 @@ class PowerSystemModel:
                     idx1 = mdl.bus_idx_red_1
                     idx2 = mdl.bus_idx_red_2
 
-                    # HARDCODED JUST TO SEE IF IT WORKS IN KUNDUR. CHANGE THIS LATER.
-                    # PROBLEM: EXTRACTING THE VALUES FROM self.y_bus_red as an array instead of np.matrix
-                    #y_bus_tmp = [-0.2000200020002001 + 2.0002000200020005j, -0.2000200020002001 + 2.0002000200020005j, -0.2000200020002001 + 2.0002000200020005j, -0.2000200020002001 + 2.0002000200020005j]
+                    # Extracting the relevant entries in y_bus_red, and converting to a list for vector multiplication
                     y_bus_tmp = np.squeeze(np.asarray(self.y_bus_red[idx1, idx2]))
                     i_line = y_bus_tmp * (self.v_red[idx1] - self.v_red[idx2])
 

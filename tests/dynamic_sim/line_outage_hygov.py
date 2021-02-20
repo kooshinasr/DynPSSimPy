@@ -28,7 +28,7 @@ if __name__ == '__main__':
     ps.init_dyn_sim()
 
     # Solver
-    t_end = 100
+    t_end = 600
     sol = dps_uf.ModifiedEuler(ps.ode_fun, 0, ps.x0, t_end, max_step=10e-3)
 
     t = 0
