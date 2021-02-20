@@ -297,6 +297,10 @@ class PowerSystemModel:
         y_load = np.zeros((n_bus, n_bus), dtype=complex)
         if type == 'dyn':
 
+            # Remove Z-field if it already exists since y_bus is to be modified during load increase
+            if 'Z' in self.loads.dtype.names:
+                self.loads = self.loads[['name', 'bus', 'P', 'Q', 'model']]
+
             # Add impedance field to load input parameters (to be able to compute actual power consumed by load)
             # Impedance is given in system p.u. base
             if len(self.loads) > 0:
@@ -486,7 +490,6 @@ class PowerSystemModel:
         self.gov_mdls = dict()
         self.avr_mdls = dict()
         self.pss_mdls = dict()
-
         # ADDED
         self.ace_mdls = dict()
 
@@ -540,16 +543,15 @@ class PowerSystemModel:
                 elif i == 4:  # Do this for ACE only
                     mdl.active = np.ones(len(data), dtype=bool)
 
+                    # Getting correct bus indexes for enabling efficient calculation of power flow
                     buses_1 = []
                     buses_2 = []
                     buses_to_keep_1 = data['bus1']
                     buses_to_keep_2 = data['bus2']
                     for bus1, bus2 in zip(buses_to_keep_1, buses_to_keep_2):
                         for bus, v in self.buses:
-                            if bus == bus1:
-                                buses_1.append(bus)
-                            if bus == bus2:
-                                buses_2.append(bus)
+                            if bus == bus1: buses_1.append(bus)
+                            if bus == bus2: buses_2.append(bus)
 
                     mdl.bus_idx_1 = dps_uf.lookup_strings(buses_1, self.buses['name'])
                     mdl.bus_idx_2 = dps_uf.lookup_strings(buses_2, self.buses['name'])
@@ -564,12 +566,12 @@ class PowerSystemModel:
 
                     # HARDCODED JUST TO SEE IF IT WORKS IN KUNDUR. CHANGE THIS LATER.
                     # PROBLEM: EXTRACTING THE VALUES FROM self.y_bus_red as an array instead of np.matrix
-                    y_bus_tmp = [-0.2000200020002001 + 2.0002000200020005j, -0.2000200020002001 + 2.0002000200020005j, -0.2000200020002001 + 2.0002000200020005j, -0.2000200020002001 + 2.0002000200020005j]
+                    #y_bus_tmp = [-0.2000200020002001 + 2.0002000200020005j, -0.2000200020002001 + 2.0002000200020005j, -0.2000200020002001 + 2.0002000200020005j, -0.2000200020002001 + 2.0002000200020005j]
+                    y_bus_tmp = np.squeeze(np.asarray(self.y_bus_red[idx1, idx2]))
                     i_line = y_bus_tmp * (self.v_red[idx1] - self.v_red[idx2])
 
                     p_line = -(self.v_red[idx1] * np.conj(i_line)).real
                     mdl.int_par['Ptie0'] = p_line
-                    print(mdl.int_par['Ptie0'])
 
                 else:  # Do this for control models only
                     mdl.active = np.ones(len(data), dtype=bool)
@@ -740,13 +742,14 @@ class PowerSystemModel:
                     idx2 = dm.bus_idx_red_2
 
                     # FIND A WAY TO WORK AROUND THIS. HARDCODED AT THE MOMENT
-                    y_bus_tmp = [-0.2000200020002001 + 2.0002000200020005j, -0.2000200020002001 + 2.0002000200020005j, -0.2000200020002001 + 2.0002000200020005j, -0.2000200020002001 + 2.0002000200020005j]
+                    y_bus_tmp = np.squeeze(np.asarray(self.y_bus_red[idx1, idx2]))
 
                     i_line = y_bus_tmp * (self.v_red[idx1] - self.v_red[idx2])
                     p_line = -(self.v_red[idx1] * np.conj(i_line)).real  # REMOVE np.abs when needed
                     dm.input['p_tie'][mask] = p_line
 
-            dm.ace = dm.update(
+            # Call update function. Store ACE-values and line flows
+            dm.ace, dm.p_tie = dm.update(
                 dx[dm.idx].view(dtype=dm.dtypes),
                 x[dm.idx].view(dtype=dm.dtypes),
                 dm.input, dm.output, dm.par, dm.int_par)
@@ -813,7 +816,7 @@ class PowerSystemModel:
         # GENERATORS END
         return dx
 
-    def network_event(self, event_type, name, action):
+    def network_event(self, event_type, name, action, value=0):
         # Simulate disconnection/connection of element by modifying admittance matrix
 
         if action == 'deactivate' or action == 'disconnect':
@@ -840,9 +843,16 @@ class PowerSystemModel:
             idx = dps_uf.lookup_strings(name, self.buses['name'])
             self.y_bus_red[idx,idx] += 1j*sign * 1e15
 
-        elif event_type == 'load_increase':
-            idx = dps_uf.lookup_strings(name, self.buses['name'])
-            self.y_bus_red[idx, idx] += 0.1
+        elif event_type == 'load_change':
+            print('Step change in load demand {}'.format(name))
+
+            # Add the additional value and recalculate y_buses
+            p0 = self.loads['P']
+            boolean = (self.loads['name'] == name)
+            p0[boolean] += value
+            self.loads['P'] = p0
+            self.y_bus = self.build_y_bus()
+            self.build_y_bus_red()
 
     def apply_inputs(self, input_desc, u):
         # NB: Experimental

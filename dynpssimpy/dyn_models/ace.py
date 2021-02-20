@@ -27,5 +27,6 @@ class ACE_FIRST:
         dx['x_1'][:] = p['K_i']*ace
 
         # Returns ACE solely for plotting purposes
-        return ace
+        # Added: returns p_tie for plotting too
+        return ace, p_tie
 
