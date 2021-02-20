@@ -23,7 +23,6 @@ if __name__ == '__main__':
     model = model_data.load()
 
     ps = dps.PowerSystemModel(model=model)
-    ps.use_numba = True
     ps.pf_max_it = 100
     ps.power_flow()
     ps.init_dyn_sim()
