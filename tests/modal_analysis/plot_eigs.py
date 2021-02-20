@@ -7,7 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 if __name__ == '__main__':
-
+    import ps_models.n44 as model_data
     ps = dps.PowerSystemModel(model_data.load())
     ps.power_flow()
     ps.init_dyn_sim()

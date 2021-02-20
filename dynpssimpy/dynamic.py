@@ -556,7 +556,7 @@ class PowerSystemModel:
                     buses_to_keep_1 = data['bus1']
                     buses_to_keep_2 = data['bus2']
                     for bus1, bus2 in zip(buses_to_keep_1, buses_to_keep_2):
-                        for bus, v in self.buses:
+                        for bus in self.buses['name']:
                             if bus == bus1: buses_1.append(bus)
                             if bus == bus2: buses_2.append(bus)
 
@@ -579,6 +579,7 @@ class PowerSystemModel:
                     # Setting the constant parameters
                     mdl.int_par['f'] = self.f
                     mdl.int_par['Ptie0'] = p_line
+
 
                 else:  # Do this for control models only
                     mdl.active = np.ones(len(data), dtype=bool)
@@ -725,6 +726,7 @@ class PowerSystemModel:
                 input[mask] = -x_loc[gen_mdl.state_idx['speed'][idx]]
                 dm.input['speed_dev'][mask] = -x_loc[gen_mdl.state_idx['speed'][idx]]
 
+
             dm.update(
                 dx[dm.idx].view(dtype=dm.dtypes),
                 x[dm.idx].view(dtype=dm.dtypes),
@@ -743,7 +745,13 @@ class PowerSystemModel:
                 gen_mdl = self.gen_mdls[gen_key]
                 x_loc = x[gen_mdl.idx]
                 input[mask] = -x_loc[gen_mdl.state_idx['speed'][idx]]
-                dm.input['speed_dev'][mask] = -x_loc[gen_mdl.state_idx['speed'][idx]]
+
+
+                favg = np.sum(
+                    -x_loc[gen_mdl.state_idx['speed']] * self.gen_mdls['GEN'].par['H'] * self.gen_mdls['GEN'].par[
+                        'S_n']) / np.sum(self.gen_mdls['GEN'].par['H'] * self.gen_mdls['GEN'].par['S_n'])
+
+                dm.input['speed_dev'][mask] = -x_loc[gen_mdl.state_idx['speed'][idx]] # *0+favg
 
                 idx1 = dm.bus_idx_red_1
                 idx2 = dm.bus_idx_red_2
@@ -766,6 +774,8 @@ class PowerSystemModel:
 
             # Power signal from ace is added to generator Power reference.
             gen_mdl.input['P_m'][idx[dm.active[mask]]] += dm.output['P_ace'][dm.active & mask]
+
+            #print(idx[dm.active[mask]])
 
         # ACE END
 

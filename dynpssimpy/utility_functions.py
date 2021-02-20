@@ -97,7 +97,6 @@ class ModifiedEuler(SimpleRK4):
 def jacobian_num(f, x, eps=1e-10, **params):
     # Numerical computation of Jacobian
     J = np.zeros([len(x), len(x)], dtype=np.float)
-
     for i in range(len(x)):
         x1 = x.copy()
         x2 = x.copy()

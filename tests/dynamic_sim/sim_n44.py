@@ -1,3 +1,6 @@
+# For running simulation in N44
+
+
 import dynpssimpy.dynamic as dps
 from collections import defaultdict
 import pandas as pd
@@ -16,21 +19,50 @@ if __name__ == '__main__':
     importlib.reload(dps)
 
     # Load model
-    import ps_models.k2a_with_ace as model_data
+    import ps_models.n44 as model_data
     # import ps_models.ieee39 as model_data
     # import ps_models.sm_ib as model_data
     # import ps_models.sm_load as model_data
     model = model_data.load()
 
+
+    # Calling model twice, first is to get the desired names and so on.
+    # Could probably do it another way, but this works
+    ps = dps.PowerSystemModel(model=model)
+
+    # Add controls for all generators (not specified in model)
+
+    model['gov'] = {'TGOV1':
+                        [['name', 'gen', 'R', 'D_t', 'V_min', 'V_max', 'T_1', 'T_2', 'T_3']] +
+                        [['GOV' + str(i), gen_name, 0.05, 0, 0, 1, 0.2, 1, 2] for i, (gen_name, gen_p) in
+                         enumerate(zip(ps.generators['name'], ps.generators['P']))]
+                    }
+
+    model['avr'] = {'SEXS':
+                        [['name', 'gen', 'K', 'T_a', 'T_b', 'T_e', 'E_min', 'E_max']] +
+                        [['AVR' + str(i), gen_name, 100, 2.0, 10.0, 0.5, -3, 3] for i, gen_name in
+                         enumerate(ps.generators['name'])]
+                    }
+    model.pop('avr')
+    model['pss'] = {'STAB1':
+                        [['name', 'gen', 'K', 'T', 'T_1', 'T_2', 'T_3', 'T_4', 'H_lim']] +
+                       [['PSS' + str(i), gen_name, 50, 10.0, 0.5, 0.5, 0.05, 0.05, 0.03] for i, gen_name in
+                         enumerate(ps.generators['name'])]
+                    }
+    model.pop('pss')
+
+    # Power system with governos, avr and pss
     ps = dps.PowerSystemModel(model=model)
     ps.use_numba = True
+
+
     ps.pf_max_it = 100
     ps.power_flow()
     ps.init_dyn_sim()
 
     # Solver
-    t_end = 600
-    sol = dps_uf.ModifiedEuler(ps.ode_fun, 0, ps.x0, t_end, max_step=10e-3)
+    t_end = 300
+    sol = dps_uf.ModifiedEuler(ps.ode_fun, 0, ps.x0, t_end, max_step=30e-3)
 
     t = 0
     result_dict = defaultdict(list)
@@ -52,12 +84,12 @@ if __name__ == '__main__':
         x = sol.y
         t = sol.t
 
-        if t > 1 and event_flag:
+        if t > 2 and event_flag:
             event_flag = False
             #ps.network_event('load_increase', 'B9', 'connect')
             #ps.network_event('line', 'L7-8-1', 'disconnect')
             # Load change doesnt care about connect or disconnect, the sign on the value (MW) is whats interesting
-            ps.network_event('load_change', 'L1', 'connect', value=50)
+            ps.network_event('load_change', 'L7100-1', 'connect', value=-1000)
 
         # Store result
         result_dict['Global', 't'].append(sol.t)
