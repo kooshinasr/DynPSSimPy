@@ -1,5 +1,15 @@
 # Attempting to create a central regulator ACE (area control error)
-import numpy as np
+
+# Specify in the following way
+#    ['name', 'bus1', 'bus2', 'lambda', 'K_p', 'K_i', 'alpha'],
+#    ['ACE1', 'B7', 'B8', 200 * 50 / 900, 0.0, 0.01, 0.25],
+
+# lambda is the frequency bias factor p.u MW/Hz
+# Kp and Ki is the PI-regulator parameters
+# alpha is usually chosen based on percentage of total load in the system covered by that generator
+# bus1 and bus2 chosen based on which line to compute the tie-line flow on.
+# Make sure that these buses are connected by a line (not having a zero value in Y_BUS)
+
 class ACE_FIRST:
     def __init__(self):
         self.state_list = ['x_1'] # integrator

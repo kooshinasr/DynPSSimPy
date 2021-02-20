@@ -558,9 +558,7 @@ class PowerSystemModel:
                     mdl.bus_idx_red_1 = self.get_bus_idx_red(buses_1)
                     mdl.bus_idx_red_2 = self.get_bus_idx_red(buses_2)
 
-                    mdl.int_par['f'] = self.f
-
-                    # Getting the start tie-line power flow
+                    # Easifying syntax for the following lines
                     idx1 = mdl.bus_idx_red_1
                     idx2 = mdl.bus_idx_red_2
 
@@ -568,7 +566,11 @@ class PowerSystemModel:
                     y_bus_tmp = np.squeeze(np.asarray(self.y_bus_red[idx1, idx2]))
                     i_line = y_bus_tmp * (self.v_red[idx1] - self.v_red[idx2])
 
+                    # Calculating base line flow
                     p_line = -(self.v_red[idx1] * np.conj(i_line)).real
+
+                    # Setting the constant parameters
+                    mdl.int_par['f'] = self.f
                     mdl.int_par['Ptie0'] = p_line
 
                 else:  # Do this for control models only
