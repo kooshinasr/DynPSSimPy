@@ -75,16 +75,16 @@ def load():
             ]
         },
 
-        'ace0': {
+        'ace': {
             # AT THE MOMENT, HAVE TO INCLUDE ACE AT ALL GENERATORS
             # BUT, THE ACEs having the same bus1 and bus2 (in that order) are essentially using the same centralized ACE
             # Was some difficulities regarding which generator reference power to be adjusted if this was not done
             'ACE_FIRST': [
-                ['name', 'bus1', 'bus2',       'lambda', 'K_p', 'K_i', 'alpha'],
-                ['ACE1',   'B7',   'B8',  200*50 / 900,   0.0,  0.01,     0.25],
-                ['ACE2',   'B7',   'B8', 200*50/ 900,   0.0,  0.01,     0.25],
-                ['ACE3',   'B8',   'B7', 200*50/ 900,   0.0,  0.01,     0.25],
-                ['ACE4',   'B8',   'B7', 200*50 / 900,   0.0,  0.01,     0.25],
+                ['name',  'gen',     'bus1', 'bus2',       'lambda', 'K_p', 'K_i', 'alpha'],
+                ['ACE1',   'G1',       'B7',   'B8',  200*50 / 900,   0.0,  0.01,     0.25],
+                ['ACE2',   'G2',       'B7',   'B8',   200*50/ 900,   0.0,  0.01,     0.25],
+                ['ACE3',   'G3',       'B9',   'B8',   200*50/ 900,   0.0,  0.01,     0.25],
+                ['ACE4',   'G4',       'B9',   'B8',   200*50 / 900,   0.0,  0.01,     0.25],
             ]
             # Values now: The first AGC1 (ace1 and ace2 is the same) constains a lower K_p than AGC2.
             # Got input from a fellow student saying these could be related to participation factors.

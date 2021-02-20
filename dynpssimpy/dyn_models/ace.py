@@ -1,8 +1,8 @@
 # Attempting to create a central regulator ACE (area control error)
 
 # Specify in the following way
-#    ['name', 'bus1', 'bus2', 'lambda', 'K_p', 'K_i', 'alpha'],
-#    ['ACE1', 'B7', 'B8', 200 * 50 / 900, 0.0, 0.01, 0.25],
+# ['name', 'gen', 'bus1', 'bus2', 'lambda', 'K_p', 'K_i', 'alpha'],
+# ['ACE1', 'G1', 'B7', 'B8', 200 * 50 / 900, 0.0, 0.02, 0.25],
 
 # lambda is the frequency bias factor p.u MW/Hz
 # Kp and Ki is the PI-regulator parameters

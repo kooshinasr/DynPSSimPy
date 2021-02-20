@@ -543,6 +543,13 @@ class PowerSystemModel:
                 elif i == 4:  # Do this for ACE only
                     mdl.active = np.ones(len(data), dtype=bool)
 
+                    # Appended for knowing which generator are equipped with secondary control
+                    mdl.gen_idx = dict()
+                    for gen_key in self.gen.keys():
+                        lookup, mask = dps_uf.lookup_strings(data['gen'], self.gen[gen_key]['name'], return_mask=True)
+                        if len(lookup) > 0:
+                            mdl.gen_idx[gen_key] = [mask, lookup]
+
                     # Getting correct bus indexes for enabling efficient calculation of power flow
                     buses_1 = []
                     buses_2 = []
@@ -728,25 +735,25 @@ class PowerSystemModel:
                 gen_mdl.input['P_m'][idx[dm.active[mask]]] = dm.output['P_m'][dm.active & mask]
         # GOV END
 
-        # ACE: NEW. Placed after GOV, to do += on the input to the generators Pm
+
+        # ACE
         for key, dm in self.ace_mdls.items():
-            for key2, dm2 in self.gov_mdls.items():
-                input = np.zeros(dm2.n_units, dtype=float)
-                for gen_key, (mask, idx) in dm2.gen_idx.items():
-                    gen_mdl = self.gen_mdls[gen_key]
-                    x_loc = x[gen_mdl.idx]
-                    input[mask] = -x_loc[gen_mdl.state_idx['speed'][idx]]
-                    dm.input['speed_dev'][mask] = -x_loc[gen_mdl.state_idx['speed'][idx]]
+            input = np.zeros(dm.n_units, dtype=float)
+            for gen_key, (mask, idx) in dm.gen_idx.items():
+                gen_mdl = self.gen_mdls[gen_key]
+                x_loc = x[gen_mdl.idx]
+                input[mask] = -x_loc[gen_mdl.state_idx['speed'][idx]]
+                dm.input['speed_dev'][mask] = -x_loc[gen_mdl.state_idx['speed'][idx]]
 
-                    idx1 = dm.bus_idx_red_1
-                    idx2 = dm.bus_idx_red_2
+                idx1 = dm.bus_idx_red_1
+                idx2 = dm.bus_idx_red_2
 
-                    # FIND A WAY TO WORK AROUND THIS. HARDCODED AT THE MOMENT
-                    y_bus_tmp = np.squeeze(np.asarray(self.y_bus_red[idx1, idx2]))
+                # Extract y_bus values, and convert from np.matrix to a np.array
+                y_bus_tmp = np.squeeze(np.asarray(self.y_bus_red[idx1, idx2]))
 
-                    i_line = y_bus_tmp * (self.v_red[idx1] - self.v_red[idx2])
-                    p_line = -(self.v_red[idx1] * np.conj(i_line)).real  # REMOVE np.abs when needed
-                    dm.input['p_tie'][mask] = p_line
+                i_line = y_bus_tmp * (self.v_red[idx1] - self.v_red[idx2])
+                p_line = -(self.v_red[idx1] * np.conj(i_line)).real  # REMOVE np.abs when needed
+                dm.input['p_tie'][mask] = p_line
 
             # Call update function. Store ACE-values and line flows
             dm.ace, dm.p_tie = dm.update(
@@ -755,12 +762,11 @@ class PowerSystemModel:
                 dm.input, dm.output, dm.par, dm.int_par)
 
             # Append the ACE power signals to the generator power references
-            for key2, dm2 in self.gov_mdls.items():
-                for gen_key, (mask, idx) in dm2.gen_idx.items():
-                    gen_mdl = self.gen_mdls[gen_key]
+            gen_mdl = self.gen_mdls[gen_key]
 
-                    # Power signal from ace is added to generator Power reference.
-                    gen_mdl.input['P_m'][idx[dm.active[mask]]] += dm.output['P_ace'][dm.active & mask]
+            # Power signal from ace is added to generator Power reference.
+            gen_mdl.input['P_m'][idx[dm.active[mask]]] += dm.output['P_ace'][dm.active & mask]
+
         # ACE END
 
 
