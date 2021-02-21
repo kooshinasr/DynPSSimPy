@@ -9,7 +9,7 @@
 # alpha is usually chosen based on percentage of total load in the system covered by that generator
 # bus1 and bus2 chosen based on which line to compute the tie-line flow on.
 # Make sure that these buses are connected by a line (not having a zero value in Y_BUS)
-
+import numpy as np
 class ACE_FIRST:
     def __init__(self):
         self.state_list = ['x_1'] # integrator
@@ -31,7 +31,7 @@ class ACE_FIRST:
         delta_p_ref = s_1 + s_3
 
         # Add power reference signal change
-        output['P_ace'][:] = p['alpha']*delta_p_ref
+        output['P_ace'][:] = np.minimum(np.maximum(-0.05, p['alpha']*delta_p_ref), 0.05)
 
         # Update state variable
         dx['x_1'][:] = p['K_i']*ace

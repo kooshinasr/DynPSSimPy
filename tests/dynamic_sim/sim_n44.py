@@ -89,7 +89,7 @@ if __name__ == '__main__':
             #ps.network_event('load_increase', 'B9', 'connect')
             #ps.network_event('line', 'L7-8-1', 'disconnect')
             # Load change doesnt care about connect or disconnect, the sign on the value (MW) is whats interesting
-            ps.network_event('load_change', 'L7100-1', 'connect', value=-1000)
+            ps.network_event('load_change', 'L8700-1', 'connect', value=-50)
 
         # Store result
         result_dict['Global', 't'].append(sol.t)

@@ -751,7 +751,7 @@ class PowerSystemModel:
                     -x_loc[gen_mdl.state_idx['speed']] * self.gen_mdls['GEN'].par['H'] * self.gen_mdls['GEN'].par[
                         'S_n']) / np.sum(self.gen_mdls['GEN'].par['H'] * self.gen_mdls['GEN'].par['S_n'])
 
-                dm.input['speed_dev'][mask] = -x_loc[gen_mdl.state_idx['speed'][idx]] #*0+favg
+                dm.input['speed_dev'][mask] = -x_loc[gen_mdl.state_idx['speed'][idx]]*0+favg
 
                 idx1 = dm.bus_idx_red_1
                 idx2 = dm.bus_idx_red_2
