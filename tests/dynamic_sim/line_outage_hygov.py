@@ -23,13 +23,14 @@ if __name__ == '__main__':
     model = model_data.load()
 
     ps = dps.PowerSystemModel(model=model)
+    ps.use_numba = True
     ps.pf_max_it = 100
     ps.power_flow()
     ps.init_dyn_sim()
 
     # Solver
     t_end = 600
-    sol = dps_uf.ModifiedEuler(ps.ode_fun, 0, ps.x0, t_end, max_step=10e-3)
+    sol = dps_uf.ModifiedEuler(ps.ode_fun, 0, ps.x0, t_end, max_step=30e-3)
 
     t = 0
     result_dict = defaultdict(list)
@@ -56,7 +57,7 @@ if __name__ == '__main__':
             #ps.network_event('load_increase', 'B9', 'connect')
             #ps.network_event('line', 'L7-8-1', 'disconnect')
             # Load change doesnt care about connect or disconnect, the sign on the value (MW) is whats interesting
-            ps.network_event('load_change', 'L1', 'connect', value=50)
+            ps.network_event('load_change', 'L2', 'connect', value=-200)
 
         # Store result
         result_dict['Global', 't'].append(sol.t)

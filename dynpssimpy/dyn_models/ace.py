@@ -27,14 +27,14 @@ class ACE_FIRST:
 
         ace = p['lambda']*speed_dev - (p_tie - int_par['Ptie0'])
         s_1 = p['K_p']*ace
-        s_3 = x['x_1']
+        s_3 = p['K_i']*x['x_1']
         delta_p_ref = s_1 + s_3
 
         # Add power reference signal change
-        output['P_ace'][:] = np.minimum(np.maximum(-0.05, p['alpha']*delta_p_ref), 0.05)
+        output['P_ace'][:] = np.minimum(np.maximum(-1.0, p['alpha']*delta_p_ref), 1.0)
 
         # Update state variable
-        dx['x_1'][:] = p['K_i']*ace
+        dx['x_1'][:] = ace # p['K_i']*ace
 
         # Returns ACE solely for plotting purposes
         # Added: returns p_tie for plotting too

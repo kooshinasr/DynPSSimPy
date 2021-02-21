@@ -43,13 +43,13 @@ if __name__ == '__main__':
                         [['AVR' + str(i), gen_name, 100, 2.0, 10.0, 0.5, -3, 3] for i, gen_name in
                          enumerate(ps.generators['name'])]
                     }
-    model.pop('avr')
+    #model.pop('avr')
     model['pss'] = {'STAB1':
                         [['name', 'gen', 'K', 'T', 'T_1', 'T_2', 'T_3', 'T_4', 'H_lim']] +
                        [['PSS' + str(i), gen_name, 50, 10.0, 0.5, 0.5, 0.05, 0.05, 0.03] for i, gen_name in
                          enumerate(ps.generators['name'])]
                     }
-    model.pop('pss')
+    #model.pop('pss')
 
     # Power system with governos, avr and pss
     ps = dps.PowerSystemModel(model=model)
@@ -89,7 +89,7 @@ if __name__ == '__main__':
             #ps.network_event('load_increase', 'B9', 'connect')
             #ps.network_event('line', 'L7-8-1', 'disconnect')
             # Load change doesnt care about connect or disconnect, the sign on the value (MW) is whats interesting
-            ps.network_event('load_change', 'L8700-1', 'connect', value=-50)
+            ps.network_event('load_change', 'L3359-1', 'connect', value=1000)
 
         # Store result
         result_dict['Global', 't'].append(sol.t)
