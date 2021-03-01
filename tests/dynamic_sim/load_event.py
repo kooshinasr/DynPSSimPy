@@ -69,7 +69,7 @@ if __name__ == '__main__':
             ps.network_event('line','L1-2', 'disconnect')
 
         if t >= 15 and event_flag2:
-            ps.network_event('load_change','L1', 'activate', dS = 1j*5)  # dS in MVA (not pu), can be complex
+            ps.network_event('load_change','L1', 'activate', dS = 5)  # dS in MVA (not pu), can be complex
 
             event_flag2 = False
 
