@@ -829,14 +829,13 @@ class PowerSystemModel:
         # GENERATORS END
         return dx
 
-    def network_event(self, event_type, name, action, value=0):
+    def network_event(self, event_type, name, action, dS=0):
         # Simulate disconnection/connection of element by modifying admittance matrix
 
         if action == 'deactivate' or action == 'disconnect':
             sign = -1
         elif action == 'activate' or action == 'connect':
             sign = 1
-
 
         if event_type == 'line':
             df = getattr(self, 'lines')
@@ -859,13 +858,22 @@ class PowerSystemModel:
         elif event_type == 'load_change':
             print('Step change in load demand {}'.format(name))
 
+            y_b_old = self.build_y_bus()
             # Add the additional value and recalculate y_buses
             p0 = self.loads['P']
+            q0 = self.loads['Q']
             boolean = (self.loads['name'] == name)
-            p0[boolean] += value
+            p0[boolean] += np.real(dS)
+            q0[boolean] += np.imag(dS)
+
             self.loads['P'] = p0
-            self.y_bus = self.build_y_bus()
-            self.build_y_bus_red()
+            self.loads['Q'] = q0
+            busname = self.loads['bus'][boolean]
+            idx = dps_uf.lookup_strings(busname, self.buses['name'])
+
+            y_b_new = self.build_y_bus()
+            self.y_bus_red[idx,idx] += y_b_new[idx,idx]-y_b_old[idx,idx]
+
 
     def apply_inputs(self, input_desc, u):
         # NB: Experimental
@@ -945,14 +953,14 @@ class PowerSystemModel:
                     bus_idx = self.loads['bus_idx'][load_idx]  # This works when kron reduction is bypassed!
                     # if bus_idx in self.reduced_bus_idx:
                     s = abs(self.v_red[bus_idx]) ** 2 / np.conj(z)
-                    store_vars.append(s)
+                    if 'P_l' in varnames:
+                        store_vars.append(np.real(s))
+                    if 'Q_l' in varnames:
+                        store_vars.append(np.imag(s))
+                    if 'S_l' in varnames:
+                        store_vars.append(s)
 
-                if 'S_l' in varnames:
-                    [resultdict[tuple(desc)].append(out) for desc, out in zip(vardesc, store_vars)]
-                if 'P_l' in varnames:
-                    [resultdict[tuple(desc)].append(out) for desc, out in zip(vardesc, np.real(store_vars))]
-                if 'Q_l' in varnames:
-                    [resultdict[tuple(desc)].append(out) for desc, out in zip(vardesc, np.imag(store_vars))]
+            [resultdict[tuple(desc)].append(out) for desc, out in zip(vardesc, store_vars)]
 
     def compute_result(self, type, name, res):
         if type == 'load':

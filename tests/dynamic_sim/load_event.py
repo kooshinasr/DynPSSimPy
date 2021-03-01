@@ -53,7 +53,7 @@ if __name__ == '__main__':
     #avr_outs = []
     #gov_outs = []
     gen_vars = ['P_e', 'I_g','P_m']
-    load_vars = ['P_l']  # l subscript means "load"
+    load_vars = ['P_l', 'Q_l']  # l subscript means "load"
 
     gen_var_desc = ps.var_desc('GEN',gen_vars)
     load_var_desc = ps.var_desc('load',load_vars)
@@ -69,7 +69,7 @@ if __name__ == '__main__':
             ps.network_event('line','L1-2', 'disconnect')
 
         if t >= 15 and event_flag2:
-            ps.network_event('load_change','L1', 'activate', dS = 5)
+            ps.network_event('load_change','L1', 'activate', dS = 1j*5)  # dS in MVA (not pu), can be complex
 
             event_flag2 = False
 
