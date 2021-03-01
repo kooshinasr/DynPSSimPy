@@ -70,6 +70,7 @@ if __name__ == '__main__':
 
         if t >= 15 and event_flag2:
             ps.network_event('load_change','L1', 'activate', dS = 5)
+
             event_flag2 = False
 
         # Simulate next step
