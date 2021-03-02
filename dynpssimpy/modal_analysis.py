@@ -24,6 +24,7 @@ class PowerSystemModelLinearization:
         self.rev = evs
         self.lev = np.linalg.inv(self.rev)
         self.p_f = np.multiply(self.rev, np.transpose(self.lev))
+        self.p_f = self.p_f/np.abs(self.p_f).max(axis = 0)
         self.damping = -self.eigs.real / abs(self.eigs)
         self.freq = self.eigs.imag / (2 * np.pi)
 
