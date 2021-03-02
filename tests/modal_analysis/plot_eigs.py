@@ -7,7 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 if __name__ == '__main__':
-    import ps_models.n44 as model_data
+    import ps_models.k2a as model_data
     ps = dps.PowerSystemModel(model_data.load())
     ps.power_flow()
     ps.init_dyn_sim()
@@ -27,9 +27,20 @@ if __name__ == '__main__':
     rev = ps_lin.rev
     mode_shape = rev[np.ix_(ps.gen_mdls['GEN'].state_idx['speed'], mode_idx)]
 
+    # NEW
+    idx_tmp = 0
+    eig_tmp = ps_lin.eigs[mode_idx]
     # Plot mode shape
     fig, ax = plt.subplots(1, mode_shape.shape[1], subplot_kw={'projection': 'polar'})
     for ax_, ms in zip(ax, mode_shape.T):
         dps_plt.plot_mode_shape(ms, ax=ax_, normalize=True)
+
+        # Getting corresponding text
+        re = eig_tmp[idx_tmp].real
+        im = eig_tmp[idx_tmp].imag
+        str = '{:.2f} Hz\n{:.2f}%'.format(im/(2*np.pi), -100*re/(np.sqrt(re*re+im*im)))
+        ax_.set_title(str, fontsize=6)
+        idx_tmp += 1
+        ax_.grid(True)
 
     plt.show()
