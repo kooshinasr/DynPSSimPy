@@ -7,7 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 if __name__ == '__main__':
-    import ps_models.n44_with_agc as model_data
+    import ps_models.n44 as model_data
     ps = dps.PowerSystemModel(model_data.load())
     ps.power_flow()
     ps.init_dyn_sim()
@@ -42,18 +42,42 @@ if __name__ == '__main__':
     idx_tmp = 0
     eig_tmp = ps_lin.eigs[mode_idx]
 
+    # For getting the desired colors in N44
+    if model_data.load()['slack_bus'] == '3300':
+        # The colors are in the same ordering as the generators in the system
+        col = ['grey', 'grey', 'grey', 'grey', 'grey', 'grey', 'grey', 'xkcd:cornflower blue', 'grey', 'grey', 'grey', 'grey',
+            'grey', 'grey', 'grey', 'grey', 'grey', 'xkcd:royal blue', 'grey', 'grey', 'grey', 'grey', 'grey', 'grey', 'grey',
+            'grey', 'grey', 'grey', 'grey', 'xkcd:dark red', 'grey', 'grey', 'xkcd:red', 'grey', 'grey', 'grey', 'grey',
+            'xkcd:coral', 'grey', 'grey', 'grey', 'grey', 'grey', 'xkcd:green', 'grey', 'grey', 'grey', 'grey', 'grey', 'grey',
+            'grey', 'grey', 'grey', 'grey', 'grey', 'xkcd:pure blue', 'grey', 'grey', 'grey', 'grey', 'grey']
 
-    # Plot mode shape
-    fig, ax = plt.subplots(1, mode_shape.shape[1], subplot_kw={'projection': 'polar'})
-    for ax_, ms in zip(ax, mode_shape.T):
-        dps_plt.plot_mode_shape(ms, ax=ax_, normalize=True)
+        # Plot mode shapes for N44
+        fig, ax = plt.subplots(1, mode_shape.shape[1], subplot_kw={'projection': 'polar'})
+        for ax_, ms in zip(ax, mode_shape.T):
+            dps_plt.plot_mode_shape_2(ms, ax=ax_, normalize=True, colors=col)
 
-        # Getting corresponding text
-        re = eig_tmp[idx_tmp].real
-        im = eig_tmp[idx_tmp].imag
-        str = '{:.2f} Hz\n{:.2f}%'.format(im/(2*np.pi), -100*re/(np.sqrt(re*re+im*im)))
-        ax_.set_title(str, fontsize=6)
-        idx_tmp += 1
-        ax_.grid(True)
+            # Getting corresponding text
+            re = eig_tmp[idx_tmp].real
+            im = eig_tmp[idx_tmp].imag
+            str = '{:.2f} Hz\n{:.2f}%'.format(im/(2*np.pi), -100*re/(np.sqrt(re*re+im*im)))
+            ax_.set_title(str, fontsize=6)
+            idx_tmp += 1
+            ax_.grid(True)
+
+    # DO IT THE OLD WAY
+    else:
+        # Plot mode shapes for N44
+        fig, ax = plt.subplots(1, mode_shape.shape[1], subplot_kw={'projection': 'polar'})
+        for ax_, ms in zip(ax, mode_shape.T):
+            dps_plt.plot_mode_shape(ms, ax=ax_, normalize=True)
+
+            # Getting corresponding text
+            re = eig_tmp[idx_tmp].real
+            im = eig_tmp[idx_tmp].imag
+            str = '{:.2f} Hz\n{:.2f}%'.format(im/(2*np.pi), -100*re/(np.sqrt(re*re+im*im)))
+            ax_.set_title(str, fontsize=6)
+            idx_tmp += 1
+            ax_.grid(True)
+
 
     plt.show()
