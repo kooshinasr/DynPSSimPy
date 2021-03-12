@@ -51,6 +51,15 @@ if __name__ == '__main__':
             'xkcd:coral', 'grey', 'grey', 'grey', 'grey', 'grey', 'xkcd:green', 'grey', 'grey', 'grey', 'grey', 'grey', 'grey',
             'grey', 'grey', 'grey', 'grey', 'grey', 'xkcd:pure blue', 'grey', 'grey', 'grey', 'grey', 'grey']
 
+        # Color description
+        #'G3249-1' = xkcd:cornflower blue
+        #'G3359-1' = xkcd:royal blue
+        #'G5600-1' = xkcd:dark red
+        #'G6100-1' = xkcd:red
+        #'G6500-1' = xkcd:coral
+        #'G7000-1' = xkcd:green
+        #'G8500-1' = xkcd:pure blue
+
         # Plot mode shapes for N44
         fig, ax = plt.subplots(1, mode_shape.shape[1], subplot_kw={'projection': 'polar'})
         for ax_, ms in zip(ax, mode_shape.T):
