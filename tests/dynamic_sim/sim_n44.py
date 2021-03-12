@@ -31,7 +31,7 @@ if __name__ == '__main__':
     ps = dps.PowerSystemModel(model=model)
 
     # Add controls for all generators (not specified in model)
-
+    """
     model['gov'] = {'TGOV1':
                         [['name', 'gen', 'R', 'D_t', 'V_min', 'V_max', 'T_1', 'T_2', 'T_3']] +
                         [['GOV' + str(i), gen_name, 0.05, 0, 0, 1, 0.2, 1, 2] for i, (gen_name, gen_p) in
@@ -50,18 +50,18 @@ if __name__ == '__main__':
                          enumerate(ps.generators['name'])]
                     }
     #model.pop('pss')
+    """
 
     # Power system with governos, avr and pss
     ps = dps.PowerSystemModel(model=model)
     ps.use_numba = True
-
 
     ps.pf_max_it = 100
     ps.power_flow()
     ps.init_dyn_sim()
 
     # Solver
-    t_end = 300
+    t_end = 30
     sol = dps_uf.ModifiedEuler(ps.ode_fun, 0, ps.x0, t_end, max_step=30e-3)
 
     t = 0
@@ -89,7 +89,7 @@ if __name__ == '__main__':
             #ps.network_event('load_increase', 'B9', 'connect')
             #ps.network_event('line', 'L7-8-1', 'disconnect')
             # Load change doesnt care about connect or disconnect, the sign on the value (MW) is whats interesting
-            ps.network_event('load_change', 'L3359-1', 'connect', value=1000)
+            ps.network_event('load_change', 'L3359-1', 'connect', dS=1000)
 
         # Store result
         result_dict['Global', 't'].append(sol.t)

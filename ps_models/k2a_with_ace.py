@@ -75,7 +75,7 @@ def load():
             ]
         },
 
-        'ace': {
+        'ace0': {
             # AT THE MOMENT, HAVE TO INCLUDE ACE AT ALL GENERATORS
             # BUT, THE ACEs having the same bus1 and bus2 (in that order) are essentially using the same centralized ACE
             # Was some difficulities regarding which generator reference power to be adjusted if this was not done
