@@ -74,7 +74,6 @@ class GEN:
         # This is to avoid having to specify units in input_list in model definition.
         V_g = input['V_t_abs']*np.exp(1j*input['V_t_angle'])
 
-
         d = np.exp(1j * (x['angle'] - np.pi / 2))
         q = np.exp(1j * x['angle'])
 
@@ -90,26 +89,23 @@ class GEN:
         I_g_dq = I_g * np.exp(1j * (np.pi / 2 - x['angle']))
         I_d = I_g_dq.real
         I_q = I_g_dq.imag
-
         e_q_tmp = V_g + 1j * p['X_q'] * I_g
 
         P_e = (x['e_q_st'] * I_q + x['e_d_st'] * I_d)/p['PF_n']  # - (x_d_st - x_q_st) * i_d * i_q
         output['P_e'][:] = P_e
-        # output['Q'][:]
+        output['Q'][:] = np.imag(V_g*I_g.conjugate())
 
         # Generators
         T_m = input['P_m'] / (1 + x['speed'])
+        T_e = P_e/ (1 + x['speed'])
         output['T_m'][:] = T_m
         output['I_g'][:] = abs(I_g)
         H = p['H']/p['PF_n']
 
-        dx['speed'][:] = 1/(2*H)*(T_m - P_e - p['D'] * x['speed'])
+        dx['speed'][:] = 1/(2*H)*(T_m - T_e - p['D'] * x['speed'])
         dx['angle'][:] = x['speed']*2*np.pi*int_par['f']
         dx['e_q_t'][:] = 1/(p['T_d0_t'])*(input['E_f'] + input['v_aux'] - x['e_q_t'] - I_d * (p['X_d'] - p['X_d_t']))
         dx['e_d_t'][:] = 1/(p['T_q0_t'])*(-x['e_d_t'] + I_q * (p['X_q'] - p['X_q_t']))
         dx['e_q_st'][:] = 1/(p['T_d0_st']) * (x['e_q_t'] - x['e_q_st'] - I_d * (p['X_d_t'] - p['X_d_st']))
         dx['e_d_st'][:] = 1/(p['T_q0_st']) * (x['e_d_t'] - x['e_d_st'] + I_q * (p['X_q_t'] - p['X_q_st']))
 
-
-class GEN2(GEN):
-    pass
