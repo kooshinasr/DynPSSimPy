@@ -869,7 +869,7 @@ class PowerSystemModel:
             self.loads['P'] = p0
             self.loads['Q'] = q0
             busname = self.loads['bus'][boolean]
-            idx = dps_uf.lookup_strings(busname, self.buses['name'])
+            idx = dps_uf.lookup_strings(busname, self.buses['name'])[0]
 
             y_b_new = self.build_y_bus()
             self.y_bus_red[idx,idx] += y_b_new[idx,idx]-y_b_old[idx,idx]
