@@ -840,7 +840,7 @@ class PowerSystemModel:
         if event_type == 'line':
             df = getattr(self, 'lines')
             obj = df[dps_uf.lookup_strings(name, df['name'])]
-            print(obj)
+            print('Line {} event'.format(name))
             idx_from, idx_to, admittance, shunt = self.read_admittance_data('line', obj)
             rows = np.array([idx_from, idx_to, idx_from, idx_to])
             cols = np.array([idx_from, idx_to, idx_to, idx_from])
@@ -851,7 +851,7 @@ class PowerSystemModel:
             self.y_bus_red += sign * y_line
 
         elif event_type == 'sc':
-
+            print('Short circuit event at bus {}'.format(name))
             idx = dps_uf.lookup_strings(name, self.buses['name'])
             self.y_bus_red[idx,idx] += 1j*sign * 1e15
 
