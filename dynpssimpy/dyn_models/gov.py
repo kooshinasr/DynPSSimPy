@@ -117,6 +117,33 @@ class HYGOV:
         upper_lim_idx = (x['x_1'] >= p['V_max']) & (dx['x_1'] > 0)
         dx['x_1'][upper_lim_idx] *= 0
 
+
+class A8HYGOV:
+
+    def __init__(self):
+        self.state_list = ['c','xm','xf']
+        self.int_par_list = ['Pm_init']
+        self.input_list = ['speed_dev']
+        self.output_list = ['P_m']
+
+    @staticmethod
+    def initialize(x_0, input, output, p, int_par):
+        x_0['c'] = 0
+        x_0['xm'] = 0
+        x_0['xf'] = 0
+        int_par['Pm_init'] = output['P_m']
+
+    @staticmethod
+    def _update(dx, x, input, output, p, int_par):
+        speed_dev = input['speed_dev']
+        u1 = speed_dev-p['R']*x['c']-x['xf']
+        dx['c'][:] = 1/p['Tg']*u1
+        dx['xm'][:] = 2/(p['Pm0']*p['Tw'])*(x['c']-x['xm']-p['Pm0']*p['Tw']/p['Tg']*u1)
+        dx['xf'][:] = 1/p['Tr']*(p['delta']*p['Tr']/p['Tg']*u1-x['xf'])
+
+        output['P_m'] = x['xm'] + int_par['Pm_init']
+
+
 class HYGOV_LFC(HYGOV):
     """
     purpose: Implementing secondary control on the HYGOV.
