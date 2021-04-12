@@ -7,7 +7,7 @@ import pandas as pd
 class PowerSystemModelLinearization:
     def __init__(self, ps):
         self.ps = ps
-        self.eps = 1e-10
+        self.eps = 1e-8
         self.linearize_inputs_v2 = self.linearize_inputs
 
     def linearize(self, ps=None, x0=np.array([]), input_description=np.array([]), output_description=np.array([])):
@@ -23,6 +23,9 @@ class PowerSystemModelLinearization:
         # Right/left rigenvectors (rev/lev)
         self.rev = evs
         self.lev = np.linalg.inv(self.rev)
+        import scipy.linalg as scp
+        #self.eigs, self.rev = scp.eig(self.a)
+        #self.lev = np.linalg.inv(self.rev)
         self.p_f = np.multiply(self.rev, np.transpose(self.lev))
         self.p_f = self.p_f/np.abs(self.p_f).max(axis = 0)
         self.damping = -self.eigs.real / abs(self.eigs)
@@ -31,7 +34,7 @@ class PowerSystemModelLinearization:
         if len(input_description) > 0:
             self.b = self.linearize_inputs(input_description)
 
-        if len(input_description) > 0:
+        if len(output_description) > 0:
             self.c = self.linearize_outputs(output_description)
 
     def linearize_inputs(self, input_description):
@@ -43,11 +46,16 @@ class PowerSystemModelLinearization:
         for i, inp_ in enumerate(input_description):
             b_tmp = np.zeros(len(ps.x0))
             for inp__ in inp_:
-                var = getattr(ps, inp__[0])
+                #var = getattr(ps, inp__[0])
+                var = ps.gen_mdls['GEN'].input[0]
+                print(var)
                 index = inp__[1]
                 gain = inp__[2] if len(inp__) == 3 else 1
 
-                var_0 = var[index]
+                #var_0 = var[index]
+                print(gain)
+                var_0 = var
+                print(var_0)
                 var[index] = var_0 + eps * gain
                 f_1 = ps.ode_fun(0, ps.x0)
                 var[index] = var_0 - eps * gain
@@ -114,8 +122,29 @@ class PowerSystemModelLinearization:
         p_f = pd.DataFrame(np.abs(self.p_f), columns = col, index = rows)
         rev_abs = pd.DataFrame(np.abs(self.rev), columns = col, index = rows)
         rev_ang = pd.DataFrame(np.angle(self.rev)*180/np.pi, columns = col, index = rows)
+        self.pf = p_f
         return p_f, rev_abs, rev_ang
 
+    def pf_filtered(self, re=(-1,1e5), im=(0.1,20), part_min=0.1, damping_min=0.1):
+        """
+        Filters the participation factor table.
+        Default values yield low frequency eigenvalues with low damping.
+        :param re: Eigenvalue real part interval
+        :param im: Eigenvalue imaginary part interval
+        :param part_min: minimum participation factor value
+        :param damping_min: minimum relative damping value
+        :return: participation factors (DataFrame)
+        """
+        pf = self.pf
+        for x in self.eigs:
+            cond = np.real(x) < re[0] or np.real(x) > re[1] or \
+                   np.abs(np.imag(x)) < im[0] or np.abs(np.imag(x)) > im[1] or \
+                   np.real(x)/np.abs(x) > damping_min
+            if cond:
+                pf = pf.drop(columns =['{0:.3g}'.format(x)], errors = 'ignore')
+
+        pf = pf[pf.max(axis = 1)> part_min]
+        return pf
 
 if __name__ == '__main__':
     
